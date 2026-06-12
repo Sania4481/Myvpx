@@ -1,0 +1,1430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0a0a0f">
+  <title>⚔️ TikTok Live Battle</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg:     #07070d;
+      --card:   rgba(255,255,255,0.04);
+      --border: rgba(255,255,255,0.07);
+      --pink:   #f72585;
+      --cyan:   #4cc9f0;
+      --gold:   #ffd60a;
+      --purple: #b44aff;
+      --green:  #06d6a0;
+      --text:   #e2e8f0;
+      --muted:  #4a5568;
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg); color: var(--text);
+      min-height: 100vh; padding: 12px; overflow-x: hidden;
+    }
+    body::before {
+      content: ''; position: fixed; inset: 0;
+      background-image:
+        linear-gradient(rgba(247,37,133,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(76,201,240,0.03) 1px, transparent 1px);
+      background-size: 40px 40px; pointer-events: none; z-index: 0;
+    }
+    .container { max-width: 600px; margin: 0 auto; position: relative; z-index: 1; }
+
+    /* ── Header ── */
+    .header {
+      text-align: center; margin-bottom: 14px;
+      padding: 16px; border-radius: 20px;
+      background: linear-gradient(135deg, rgba(247,37,133,0.08), rgba(76,201,240,0.05));
+      border: 1px solid rgba(247,37,133,0.2); position: relative; overflow: hidden;
+    }
+    .header::after {
+      content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--pink), var(--cyan), transparent);
+      animation: scanline 3s linear infinite;
+    }
+    @keyframes scanline { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
+    .header h1 {
+      font-family: 'Rajdhani', sans-serif; font-size: 1.5rem; font-weight: 700;
+      letter-spacing: 4px; text-transform: uppercase;
+      background: linear-gradient(90deg, var(--pink), var(--cyan), var(--purple), var(--pink));
+      background-size: 300% auto; -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent; background-clip: text;
+      animation: shimmer 4s linear infinite;
+    }
+    @keyframes shimmer { to { background-position: 300% center; } }
+    .streamer-info {
+      display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px;
+    }
+    .status-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 10px; border-radius: 20px;
+      font-size: 0.65rem; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase;
+    }
+    .status-badge.live   { background: rgba(247,37,133,0.12); color: var(--pink); border: 1px solid rgba(247,37,133,0.35); }
+    .status-badge.offline{ background: rgba(74,85,104,0.15); color: var(--muted); border: 1px solid rgba(74,85,104,0.25); }
+    .live-dot { width: 7px; height: 7px; background: var(--pink); border-radius: 50%; animation: blink 1s ease-in-out infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.15} }
+
+    /* ── HOW TO JOIN banner ── */
+    .join-tip {
+      background: linear-gradient(135deg, rgba(180,74,255,0.08), rgba(76,201,240,0.06));
+      border: 1px solid rgba(180,74,255,0.25); border-radius: 18px;
+      padding: 16px; margin-bottom: 14px; text-align: center;
+    }
+    .join-tip-title {
+      font-size: 1.3rem; font-weight: 800; text-transform: uppercase;
+      letter-spacing: 2px; color: var(--purple); margin-bottom: 14px;
+    }
+    .join-tip-row { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+    .join-tip-item {
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      flex: 1; min-width: 120px;
+    }
+    .join-code {
+      background: rgba(247,37,133,0.15); color: var(--pink);
+      border: 2px solid rgba(247,37,133,0.5); padding: 6px 0;
+      border-radius: 14px; font-family: 'Rajdhani', sans-serif;
+      font-size: 1.2rem; font-weight: 700; width: 100%;
+      letter-spacing: 2px;
+    }
+    .join-code.b {
+      background: rgba(76,201,240,0.15); color: var(--cyan);
+      border-color: rgba(76,201,240,0.5);
+    }
+    .join-team-label {
+      font-size: 1rem; font-weight: 800; letter-spacing: 1px;
+    }
+    .join-team-label.a { color: var(--pink); }
+    .join-team-label.b { color: var(--cyan); }
+    .join-divider {
+      width: 1px; background: var(--border); align-self: stretch; margin: 0 4px;
+    }
+
+    /* ══════════════════════════════════════
+       ⚔️  BATTLE ARENA — always visible
+    ══════════════════════════════════════ */
+    .battle-arena {
+      background: var(--card); border-radius: 20px;
+      border: 1px solid rgba(255,214,10,0.2);
+      padding: 16px; margin-bottom: 14px;
+      position: relative; overflow: hidden;
+    }
+    .battle-arena::before {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(ellipse at 20% 50%, rgba(247,37,133,0.04) 0%, transparent 60%),
+                  radial-gradient(ellipse at 80% 50%, rgba(76,201,240,0.04) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    /* Timer */
+    .battle-timer { text-align: center; margin-bottom: 14px; }
+    .battle-timer-label {
+      font-size: 0.6rem; font-weight: 800; text-transform: uppercase;
+      letter-spacing: 2px; color: var(--gold); margin-bottom: 4px;
+    }
+    .battle-timer-val {
+      font-family: 'Rajdhani', sans-serif; font-size: 2.8rem; font-weight: 700;
+      color: var(--gold); line-height: 1;
+      text-shadow: 0 0 20px rgba(255,214,10,0.5);
+      transition: color 0.3s;
+    }
+    .battle-timer-val.urgent { color: var(--pink); text-shadow: 0 0 20px rgba(247,37,133,0.6); animation: timerPulse 0.5s ease infinite; }
+    @keyframes timerPulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+
+    /* ── VERSUS ROW ── */
+    .versus-row {
+      display: grid; grid-template-columns: 1fr auto 1fr;
+      align-items: center; gap: 10px; margin-bottom: 14px;
+    }
+
+    /* Team cards */
+    .team-card {
+      border-radius: 16px; padding: 14px 10px; text-align: center;
+      position: relative; overflow: hidden; transition: box-shadow 0.3s;
+    }
+    .team-card.team-a { background: rgba(247,37,133,0.07); border: 2px solid rgba(247,37,133,0.3); }
+    .team-card.team-b { background: rgba(76,201,240,0.07); border: 2px solid rgba(76,201,240,0.3); }
+    .team-card.winning-a { box-shadow: 0 0 30px rgba(247,37,133,0.4); border-color: var(--pink); }
+    .team-card.winning-b { box-shadow: 0 0 30px rgba(76,201,240,0.4); border-color: var(--cyan); }
+
+    /* ── Team card shake (speed-based) ── */
+    @keyframes shakeWeak {
+      0%,100% { transform: translateX(0); }
+      20%     { transform: translateX(-2px) rotate(-0.3deg); }
+      40%     { transform: translateX(2px)  rotate(0.3deg); }
+      60%     { transform: translateX(-2px) rotate(-0.3deg); }
+      80%     { transform: translateX(2px)  rotate(0.3deg); }
+    }
+    @keyframes shakeMed {
+      0%,100% { transform: translateX(0); }
+      15%     { transform: translateX(-4px) rotate(-0.6deg); }
+      35%     { transform: translateX(4px)  rotate(0.6deg); }
+      55%     { transform: translateX(-4px) rotate(-0.6deg); }
+      75%     { transform: translateX(4px)  rotate(0.6deg); }
+    }
+    @keyframes shakeStrong {
+      0%,100% { transform: translateX(0); }
+      10%     { transform: translateX(-6px) rotate(-1deg) scale(1.01); }
+      30%     { transform: translateX(6px)  rotate(1deg)  scale(1.02); }
+      50%     { transform: translateX(-6px) rotate(-1deg) scale(1.01); }
+      70%     { transform: translateX(6px)  rotate(1deg)  scale(1.02); }
+      90%     { transform: translateX(-3px) rotate(-0.5deg); }
+    }
+    .team-card.shake-weak   { animation: shakeWeak   0.5s ease-in-out infinite; }
+    .team-card.shake-med    { animation: shakeMed    0.4s ease-in-out infinite; }
+    .team-card.shake-strong { animation: shakeStrong 0.28s ease-in-out infinite; }
+
+    .team-icon { font-size: 2rem; margin-bottom: 4px; }
+
+    /* ── Battle mode animated icons ── */
+    .team-icon.battle-a,
+    .team-icon.battle-b {
+      font-size: 2.8rem;
+      display: inline-block;
+      transform-origin: center bottom;
+      /* idle — subtle float only */
+      animation: iconIdle 2s ease-in-out infinite;
+    }
+    .team-icon.battle-a { filter: drop-shadow(0 0 8px rgba(247,37,133,0.7)); }
+    .team-icon.battle-b { filter: drop-shadow(0 0 8px rgba(76,201,240,0.7)); animation-delay: 1s; }
+
+    @keyframes iconIdle {
+      0%,100% { transform: translateY(0) scale(1); }
+      50%     { transform: translateY(-5px) scale(1.05); }
+    }
+
+    /* scoring burst — plays once when score goes up */
+    .team-icon.score-burst-a {
+      animation: burstA 0.55s cubic-bezier(0.36,0.07,0.19,0.97) forwards !important;
+      filter: drop-shadow(0 0 16px rgba(247,37,133,1)) !important;
+    }
+    .team-icon.score-burst-b {
+      animation: burstB 0.55s cubic-bezier(0.36,0.07,0.19,0.97) forwards !important;
+      filter: drop-shadow(0 0 16px rgba(76,201,240,1)) !important;
+    }
+    @keyframes burstA {
+      0%   { transform: scale(1)    rotate(0deg)   translateY(0); }
+      20%  { transform: scale(1.4)  rotate(-15deg) translateY(-12px); }
+      40%  { transform: scale(1.5)  rotate(12deg)  translateY(-16px); }
+      65%  { transform: scale(1.35) rotate(-8deg)  translateY(-10px); }
+      85%  { transform: scale(1.1)  rotate(4deg)   translateY(-4px); }
+      100% { transform: scale(1)    rotate(0deg)   translateY(0); }
+    }
+    @keyframes burstB {
+      0%   { transform: scale(1)    rotate(0deg)   translateY(0); }
+      20%  { transform: scale(1.4)  rotate(15deg)  translateY(-12px); }
+      40%  { transform: scale(1.5)  rotate(-12deg) translateY(-16px); }
+      65%  { transform: scale(1.35) rotate(8deg)   translateY(-10px); }
+      85%  { transform: scale(1.1)  rotate(-4deg)  translateY(-4px); }
+      100% { transform: scale(1)    rotate(0deg)   translateY(0); }
+    }
+    .team-name {
+      font-family: 'Rajdhani', sans-serif; font-size: 1.1rem; font-weight: 700;
+      letter-spacing: 2px; text-transform: uppercase; margin-bottom: 2px;
+    }
+    .team-card.team-a .team-name { color: var(--pink); }
+    .team-card.team-b .team-name { color: var(--cyan); }
+    .team-count { font-size: 0.6rem; color: var(--muted); font-weight: 700; letter-spacing: 1px; margin-bottom: 8px; }
+    .team-score {
+      font-family: 'Rajdhani', sans-serif; font-size: 2rem; font-weight: 700; line-height: 1;
+    }
+    .team-card.team-a .team-score { color: var(--pink); text-shadow: 0 0 12px rgba(247,37,133,0.5); }
+    .team-card.team-b .team-score { color: var(--cyan); text-shadow: 0 0 12px rgba(76,201,240,0.5); }
+    .team-score-label { font-size: 0.55rem; color: var(--muted); font-weight: 700; letter-spacing: 1px; margin-top: 2px; }
+
+    /* VS badge */
+    .vs-badge {
+      font-family: 'Rajdhani', sans-serif; font-size: 1.4rem; font-weight: 700;
+      color: var(--gold); text-shadow: 0 0 16px rgba(255,214,10,0.6);
+      letter-spacing: 1px; text-align: center;
+    }
+    .sword-anim { font-size: 1.5rem; display: block; animation: swords 1.5s ease-in-out infinite; }
+    @keyframes swords {
+      0%,100%{ transform: rotate(-10deg) scale(1); }
+      50%    { transform: rotate(10deg)  scale(1.15); }
+    }
+
+    /* ── Progress bar ── */
+    .battle-progress-wrap {
+      margin-bottom: 6px;
+      background: rgba(255,255,255,0.05); border-radius: 99px;
+      height: 22px; position: relative; overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .battle-progress-a {
+      position: absolute; left: 0; top: 0; height: 100%;
+      background: linear-gradient(90deg, var(--pink), rgba(247,37,133,0.5));
+      border-radius: 99px 0 0 99px;
+      transition: width 0.6s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    .battle-progress-b {
+      position: absolute; right: 0; top: 0; height: 100%;
+      background: linear-gradient(270deg, var(--cyan), rgba(76,201,240,0.5));
+      border-radius: 0 99px 99px 0;
+      transition: width 0.6s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    .battle-progress-center {
+      position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
+      font-size: 0.65rem; font-weight: 800; color: var(--text); z-index: 2; white-space: nowrap;
+    }
+
+    /* ── Score Info ── */
+    .score-info {
+      display: flex; justify-content: center; gap: 12px;
+      padding: 10px 0 4px; flex-wrap: wrap;
+    }
+    .score-info-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 20px; border-radius: 14px;
+      font-size: 0.95rem; font-weight: 800; letter-spacing: 0.5px;
+    }
+    .score-info-item.likes {
+      background: rgba(247,37,133,0.1);
+      border: 1px solid rgba(247,37,133,0.3);
+      color: var(--pink);
+    }
+    .score-info-item.coins {
+      background: rgba(76,201,240,0.1);
+      border: 1px solid rgba(76,201,240,0.3);
+      color: var(--cyan);
+    }
+    .score-info-item .si-emoji { font-size: 1.3rem; }
+    .score-info-item .si-label { font-size: 0.75rem; color: var(--muted); font-weight: 700; letter-spacing: 0.5px; margin-top: 2px; }
+
+    /* ── Battle controls ── */
+    .battle-controls { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+    .duration-row { display: flex; align-items: center; gap: 8px; justify-content: center; flex-wrap: wrap; }
+    .duration-label { font-size: 0.65rem; font-weight: 700; color: var(--muted); letter-spacing: 1px; }
+    .duration-btn {
+      background: var(--card); border: 1px solid var(--border);
+      color: var(--text); padding: 5px 12px; border-radius: 8px;
+      font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.2s;
+    }
+    .duration-btn:hover  { border-color: var(--gold); color: var(--gold); }
+    .duration-btn.active { background: rgba(255,214,10,0.1); border-color: var(--gold); color: var(--gold); }
+
+    .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .ctrl-btn {
+      border: none; border-radius: 14px; padding: 14px;
+      font-family: 'Rajdhani', sans-serif; font-size: 1rem; font-weight: 700;
+      letter-spacing: 1.5px; text-transform: uppercase; cursor: pointer;
+      transition: all 0.2s; position: relative; overflow: hidden; width: 100%;
+    }
+    .ctrl-btn.start {
+      background: linear-gradient(135deg, rgba(247,37,133,0.2), rgba(76,201,240,0.2));
+      border: 2px solid rgba(255,214,10,0.4); color: var(--gold);
+    }
+    .ctrl-btn.start:hover:not(:disabled) {
+      background: linear-gradient(135deg, rgba(247,37,133,0.3), rgba(76,201,240,0.3));
+      border-color: var(--gold); box-shadow: 0 0 24px rgba(255,214,10,0.35);
+      transform: translateY(-2px);
+    }
+    .ctrl-btn.stop { background: rgba(247,37,133,0.1); border: 1px solid rgba(247,37,133,0.3); color: var(--pink); }
+    .ctrl-btn.stop:hover { background: rgba(247,37,133,0.18); border-color: var(--pink); }
+    .ctrl-btn.reset-scores-btn { background: rgba(6,214,160,0.08); border: 1px solid rgba(6,214,160,0.25); color: var(--green); }
+    .ctrl-btn.reset-scores-btn:hover { background: rgba(6,214,160,0.16); border-color: var(--green); }
+    .ctrl-btn.full-reset-btn {
+      background: transparent; border: 1px dashed rgba(74,85,104,0.3); color: var(--muted);
+      font-size: 0.75rem; padding: 9px; letter-spacing: 0.5px;
+    }
+    .ctrl-btn.full-reset-btn:hover { border-color: var(--text); color: var(--text); }
+    .ctrl-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none !important; }
+
+    /* ── WINNER PANEL ── */
+    #winnerPanel {
+      text-align: center; padding: 10px 0 4px;
+      animation: fadeIn 0.4s ease;
+    }
+    @keyframes fadeIn { from{opacity:0;transform:scale(0.97)} to{opacity:1;transform:scale(1)} }
+    .winner-trophy { font-size: 2.8rem; animation: bounce 1s ease infinite; margin-bottom: 4px; }
+    @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+    .winner-title {
+      font-family: 'Rajdhani', sans-serif; font-size: 1.7rem; font-weight: 700;
+      margin-top: 4px; letter-spacing: 2px; text-transform: uppercase;
+    }
+    .winner-title.a { color: var(--pink); text-shadow: 0 0 16px rgba(247,37,133,0.7); }
+    .winner-title.b { color: var(--cyan); text-shadow: 0 0 16px rgba(76,201,240,0.7); }
+    .winner-title.draw { color: var(--gold); text-shadow: 0 0 16px rgba(255,214,10,0.7); }
+    .winner-scores {
+      display: flex; gap: 16px; margin-top: 6px; font-size: 1.15rem;
+      font-family: 'Rajdhani', sans-serif; font-weight: 700;
+      justify-content: center;
+    }
+    .winner-score-a { color: var(--pink); }
+    .winner-score-b { color: var(--cyan); }
+    .winner-confetti { font-size: 1.6rem; margin-top: 4px; animation: spin 2s linear infinite; }
+    @keyframes spin { to{ transform: rotate(360deg); } }
+
+    /* ── Winner MVP card ── */
+    .winner-mvp {
+      margin-top: 8px; display: flex; flex-direction: column; align-items: center; gap: 4px;
+      animation: mvpEntrance 0.7s cubic-bezier(0.34,1.56,0.64,1) 0.2s both;
+      padding: 12px 20px 14px; border-radius: 18px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,214,10,0.35);
+    }
+    @keyframes mvpEntrance {
+      from { opacity:0; transform: scale(0.6) translateY(20px); }
+      to   { opacity:1; transform: scale(1) translateY(0); }
+    }
+    .winner-mvp-label {
+      font-size: 0.65rem; font-weight: 800; letter-spacing: 3px;
+      text-transform: uppercase; color: var(--gold);
+    }
+    .winner-mvp-avatar-wrap {
+      position: relative; margin-top: 10px;
+      width: 96px; height: 96px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    /* spinning glow ring — stays inside wrap, no overflow */
+    .mvp-ring {
+      position: absolute; inset: -5px; border-radius: 50%;
+      border: 2px solid transparent;
+      border-top-color: var(--gold);
+      border-right-color: rgba(255,214,10,0.3);
+      animation: spinRing 1.6s linear infinite;
+      pointer-events: none;
+    }
+    .mvp-ring.r2 {
+      inset: -10px;
+      border-top-color: transparent;
+      border-bottom-color: var(--pink);
+      border-left-color: rgba(247,37,133,0.3);
+      animation-duration: 2.4s;
+      animation-direction: reverse;
+    }
+    @keyframes spinRing {
+      to { transform: rotate(360deg); }
+    }
+    .winner-mvp-crown {
+      position: absolute; top: -22px; left: 50%; transform: translateX(-50%);
+      font-size: 1.7rem; animation: crownFloat 1.4s ease-in-out infinite; z-index: 2;
+      pointer-events: none;
+    }
+    @keyframes crownFloat {
+      0%,100% { transform: translateX(-50%) translateY(0); }
+      50%     { transform: translateX(-50%) translateY(-6px); }
+    }
+    .winner-mvp-avatar {
+      width: 96px; height: 96px; border-radius: 50%; object-fit: cover;
+      border: 3px solid var(--gold); display: block; position: relative; z-index: 1;
+      box-shadow: 0 0 0 4px rgba(255,214,10,0.15), 0 0 28px rgba(255,214,10,0.55);
+      animation: avatarGlow 2s ease-in-out infinite;
+    }
+    @keyframes avatarGlow {
+      0%,100% { box-shadow: 0 0 0 4px rgba(255,214,10,0.15), 0 0 28px rgba(255,214,10,0.55); }
+      50%     { box-shadow: 0 0 0 7px rgba(255,214,10,0.25), 0 0 44px rgba(255,214,10,0.8); }
+    }
+    .winner-mvp-avatar.avatar-fallback { font-size: 2.5rem; }
+    .winner-mvp-avatar.a {
+      border-color: var(--pink);
+      animation: avatarGlowA 2s ease-in-out infinite;
+    }
+    @keyframes avatarGlowA {
+      0%,100% { box-shadow: 0 0 0 4px rgba(247,37,133,0.15), 0 0 28px rgba(247,37,133,0.6); }
+      50%     { box-shadow: 0 0 0 7px rgba(247,37,133,0.25), 0 0 44px rgba(247,37,133,0.9); }
+    }
+    .winner-mvp-avatar.b {
+      border-color: var(--cyan);
+      animation: avatarGlowB 2s ease-in-out infinite;
+    }
+    @keyframes avatarGlowB {
+      0%,100% { box-shadow: 0 0 0 4px rgba(76,201,240,0.15), 0 0 28px rgba(76,201,240,0.6); }
+      50%     { box-shadow: 0 0 0 7px rgba(76,201,240,0.25), 0 0 44px rgba(76,201,240,0.9); }
+    }
+    .winner-mvp-name {
+      font-family: 'Rajdhani', sans-serif; font-size: 1.3rem; font-weight: 700;
+      letter-spacing: 1px; margin-top: 6px; max-width: 220px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .winner-mvp-pts {
+      font-size: 0.85rem; font-weight: 800; padding: 3px 16px; border-radius: 20px;
+      letter-spacing: 0.5px;
+    }
+    .winner-mvp-pts.a { background: rgba(247,37,133,0.15); color: var(--pink); border: 1px solid rgba(247,37,133,0.4); }
+    .winner-mvp-pts.b { background: rgba(76,201,240,0.15); color: var(--cyan); border: 1px solid rgba(76,201,240,0.4); }
+    .winner-new-battle-btn {
+      margin-top: 12px; padding: 12px 28px;
+      background: linear-gradient(135deg, rgba(247,37,133,0.25), rgba(76,201,240,0.25));
+      border: 2px solid rgba(255,214,10,0.6); border-radius: 14px;
+      color: var(--gold); font-family: 'Rajdhani', sans-serif;
+      font-size: 1rem; font-weight: 700; letter-spacing: 2px;
+      text-transform: uppercase; cursor: pointer;
+      box-shadow: 0 0 20px rgba(255,214,10,0.2);
+      transition: all 0.2s; width: 100%;
+    }
+    .winner-new-battle-btn:hover {
+      background: linear-gradient(135deg, rgba(247,37,133,0.4), rgba(76,201,240,0.4));
+      border-color: var(--gold); box-shadow: 0 0 30px rgba(255,214,10,0.5);
+      transform: translateY(-2px);
+    }
+
+    /* ── Top members (below arena) ── */
+    .teams-detail { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; align-items: start; }
+    .team-detail-card { background: var(--card); border-radius: 18px; padding: 14px; border: 1px solid var(--border); }
+    .team-detail-card.a { border-color: rgba(247,37,133,0.25); }
+    .team-detail-card.b { border-color: rgba(76,201,240,0.25); }
+    .tdc-title {
+      font-size: 0.68rem; font-weight: 800; text-transform: uppercase;
+      letter-spacing: 1.5px; margin-bottom: 10px; padding-bottom: 8px;
+      border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;
+    }
+    .tdc-title.a { color: var(--pink); }
+    .tdc-title.b { color: var(--cyan); }
+    .member-row {
+      display: flex; align-items: center;
+      justify-content: space-between;
+      padding: 7px 6px; font-size: 0.85rem; gap: 8px;
+      border-radius: 10px; margin-bottom: 3px;
+      background: rgba(255,255,255,0.03);
+    }
+    .member-row:first-child { background: rgba(255,255,255,0.06); }
+    .member-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; font-size: 0.88rem; }
+    .member-pts { font-size: 0.78rem; font-weight: 800; color: var(--muted); flex-shrink: 0; margin-left: 4px; }
+    .no-members { font-size: 0.8rem; color: var(--muted); text-align: center; padding: 14px 0; }
+
+    /* ── Main leaderboards ── */
+    .section {
+      background: var(--card); border-radius: 18px;
+      padding: 14px 16px; margin-bottom: 12px;
+      border: 1px solid var(--border);
+    }
+    .section.likes-section { border-color: rgba(247,37,133,0.18); }
+    .section.gifts-section  { border-color: rgba(76,201,240,0.18); }
+    .section-title {
+      font-size: 0.65rem; font-weight: 800; text-transform: uppercase;
+      letter-spacing: 1.5px; margin-bottom: 12px; padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .section-title.pink { color: var(--pink); }
+    .section-title.cyan { color: var(--cyan); }
+    .section-badge { font-size: 0.55rem; padding: 2px 7px; border-radius: 8px; font-weight: 700; }
+    .section-badge.pink { background: rgba(247,37,133,0.12); color: var(--pink); }
+    .section-badge.cyan { background: rgba(76,201,240,0.12); color: var(--cyan); }
+
+    .lb-row {
+      display: flex; align-items: center; padding: 8px; border-radius: 10px;
+      margin-bottom: 3px; transition: all 0.2s;
+    }
+    .lb-row[data-rank="0"] { background: linear-gradient(90deg, rgba(255,214,10,0.08), transparent); border: 1px solid rgba(255,214,10,0.12); }
+    .lb-row[data-rank="1"] { background: linear-gradient(90deg, rgba(192,192,192,0.06), transparent); border: 1px solid rgba(192,192,192,0.1); }
+    .lb-row[data-rank="2"] { background: linear-gradient(90deg, rgba(205,127,50,0.06), transparent); border: 1px solid rgba(205,127,50,0.1); }
+    .rank-badge { font-size: 1.1rem; width: 30px; text-align: center; flex-shrink: 0; }
+    .rank-num   { width: 30px; text-align: center; flex-shrink: 0; font-size: 0.7rem; font-weight: 800; color: var(--muted); }
+    .avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      object-fit: cover; flex-shrink: 0; margin-left: 6px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--border);
+    }
+    .avatar.sm { width: 22px; height: 22px; margin-left: 0; margin-right: 2px; }
+    .avatar-fallback {
+      display: inline-flex; align-items: center; justify-content: center;
+      border-radius: 50%; flex-shrink: 0;
+      background: linear-gradient(135deg, rgba(247,37,133,0.18), rgba(76,201,240,0.18));
+      border: 1px solid var(--border); font-size: 0.75rem;
+    }
+    .user-name  { flex: 1; font-size: 0.88rem; font-weight: 600; margin-left: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .crown { margin-left: 3px; font-size: 0.75rem; }
+    .score { flex-shrink: 0; margin-left: 8px; font-size: 0.75rem; font-weight: 800; padding: 3px 9px; border-radius: 20px; }
+    .score.likes { background: rgba(247,37,133,0.1); color: var(--pink); border: 1px solid rgba(247,37,133,0.22); }
+    .score.coins { background: rgba(76,201,240,0.1); color: var(--cyan); border: 1px solid rgba(76,201,240,0.22); }
+    .team-tag { font-size: 0.6rem; padding: 2px 5px; border-radius: 6px; margin-left: 4px; font-weight: 700; flex-shrink: 0; }
+    .team-tag.a { background: rgba(247,37,133,0.12); color: var(--pink); }
+    .team-tag.b { background: rgba(76,201,240,0.12); color: var(--cyan); }
+
+    .empty-state { text-align: center; padding: 18px; color: var(--muted); font-size: 0.8rem; }
+
+    /* ── Stats bar ── */
+    .stats-bar { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+    .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 10px 8px; text-align: center; }
+    .stat-icon  { font-size: 1.1rem; margin-bottom: 3px; }
+    .stat-value { font-family: 'Rajdhani', sans-serif; font-size: 1.1rem; font-weight: 700; }
+    .stat-value.pink { color: var(--pink); }
+    .stat-value.cyan { color: var(--cyan); }
+    .stat-label { font-size: 0.55rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin-top: 3px; }
+
+    /* ── Offline banner ── */
+    .offline-banner { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 36px 16px; text-align: center; margin-bottom: 12px; }
+    .offline-icon { font-size: 3rem; animation: float 3s ease-in-out infinite; }
+    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+    .offline-title { font-family: 'Rajdhani', sans-serif; font-size: 1.2rem; font-weight: 700; color: var(--muted); margin-top: 10px; letter-spacing: 2px; }
+
+    /* ── Two col ── */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+      background: rgba(20,20,30,0.95); border: 1px solid var(--purple);
+      border-radius: 14px; padding: 10px 20px;
+      font-size: 0.82rem; font-weight: 700; color: var(--purple);
+      box-shadow: 0 4px 24px rgba(180,74,255,0.3);
+      transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+      z-index: 998; white-space: nowrap; max-width: 90vw; text-align: center;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+    #toast.win-a { border-color: var(--pink); color: var(--pink); box-shadow: 0 4px 30px rgba(247,37,133,0.5); }
+    #toast.win-b { border-color: var(--cyan); color: var(--cyan); box-shadow: 0 4px 30px rgba(76,201,240,0.5); }
+
+    /* ══════════════════════════════════════
+       🔔 NOTIFICATION SYSTEM (slide-in)
+    ══════════════════════════════════════ */
+    .notif-container {
+      position: fixed; top: 16px; right: 16px; z-index: 1000;
+      display: flex; flex-direction: column; gap: 8px;
+      max-width: 260px; pointer-events: none;
+    }
+    .notif-card {
+      background: rgba(10,10,20,0.97); border-radius: 14px;
+      padding: 10px 12px; display: flex; align-items: center; gap: 10px;
+      border: 1px solid; pointer-events: all;
+      animation: notifSlideIn 0.45s cubic-bezier(0.34,1.56,0.64,1);
+      box-shadow: 0 6px 30px rgba(0,0,0,0.5);
+    }
+    .notif-card.team-a {
+      border-color: rgba(247,37,133,0.55);
+      box-shadow: 0 4px 22px rgba(247,37,133,0.25);
+    }
+    .notif-card.team-b {
+      border-color: rgba(76,201,240,0.55);
+      box-shadow: 0 4px 22px rgba(76,201,240,0.25);
+    }
+    .notif-card.notif-exit { animation: notifSlideOut 0.38s ease forwards; }
+    .notif-icon { font-size: 1.4rem; flex-shrink: 0; }
+    .notif-body { flex: 1; min-width: 0; }
+    .notif-name {
+      font-weight: 800; font-size: 0.82rem;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .notif-card.team-a .notif-name { color: var(--pink); }
+    .notif-card.team-b .notif-name { color: var(--cyan); }
+    .notif-msg { font-size: 0.67rem; color: var(--muted); margin-top: 2px; }
+    .notif-close {
+      font-size: 0.6rem; color: var(--muted); cursor: pointer;
+      padding: 2px 5px; flex-shrink: 0; opacity: 0.5; line-height: 1;
+      border-radius: 4px; transition: opacity 0.2s;
+    }
+    .notif-close:hover { opacity: 1; }
+    @keyframes notifSlideIn {
+      from { transform: translateX(110%); opacity: 0; }
+      to   { transform: translateX(0);    opacity: 1; }
+    }
+    @keyframes notifSlideOut {
+      from { transform: translateX(0);    opacity: 1; }
+      to   { transform: translateX(115%); opacity: 0; }
+    }
+
+    .footer { text-align: center; padding: 10px 0 6px; font-size: 0.62rem; color: #2d3748; }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+  </style>
+</head>
+<body>
+
+<!-- 🔔 Notification Container (fixed, top-right) -->
+<div id="notifContainer" class="notif-container"></div>
+
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <h1>⚔️ Live Battle ⚔️</h1>
+    <div class="streamer-info">
+      <span style="color:var(--cyan);font-weight:700;font-size:0.95rem;" id="streamerName">@loading...</span>
+      <div class="status-badge offline" id="statusBadge">
+        <span class="live-dot"></span>
+        <span id="statusText">Connecting...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-bar" id="statsBar" style="display:none;">
+    <div class="stat-card">
+      <div class="stat-icon">❤️</div>
+      <div class="stat-value pink" id="totalLikes">0</div>
+      <div class="stat-label">Total Likes</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">💰</div>
+      <div class="stat-value cyan" id="totalCoins">0</div>
+      <div class="stat-label">Total Coins</div>
+    </div>
+  </div>
+
+  <!-- How to join -->
+  <div class="join-tip">
+    <div class="join-tip-title">💬 Comment — Choose Your Team</div>
+    <div class="join-tip-row">
+      <div class="join-tip-item">
+        <div class="join-code">A</div>
+      </div>
+      <div class="join-divider"></div>
+      <div class="join-tip-item">
+        <div class="join-code b">B</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Offline Banner (JS controls visibility via is_live status) -->
+  <div class="offline-banner" id="offlineBanner" style="display:none;">
+    <div class="offline-icon">🎮</div>
+    <div class="offline-title">STREAMER OFFLINE</div>
+    <div style="font-size:0.8rem;color:#2d3748;margin-top:5px;">Live start hone ka wait karo… Battle Arena neeche available hai.</div>
+  </div>
+
+  <!-- ⚔️ BATTLE ARENA — hamesha visible (is_live condition hataya gaya) -->
+  <div class="battle-arena" id="battleArena">
+
+    <!-- BATTLE CONTENT — normal view -->
+    <div id="battleContent">
+      <!-- Timer -->
+      <div class="battle-timer">
+        <div class="battle-timer-label">⏱ Battle Time Remaining</div>
+        <div class="battle-timer-val" id="timerVal">—:——</div>
+      </div>
+
+      <!-- VS Row -->
+      <div class="versus-row">
+        <!-- Team A -->
+        <div class="team-card team-a" id="teamACard">
+          <div class="team-icon" id="iconA">🔴</div>
+          <div class="team-name">Team A</div>
+          <div class="team-count"><span id="countA">0</span> members</div>
+          <div class="team-score" id="scoreA">0</div>
+          <div class="team-score-label">SCORE</div>
+        </div>
+
+        <!-- VS -->
+        <div class="vs-badge">
+          <span class="sword-anim">⚔️</span>
+          VS
+        </div>
+
+        <!-- Team B -->
+        <div class="team-card team-b" id="teamBCard">
+          <div class="team-icon" id="iconB">🔵</div>
+          <div class="team-name">Team B</div>
+          <div class="team-count"><span id="countB">0</span> members</div>
+          <div class="team-score" id="scoreB">0</div>
+          <div class="team-score-label">SCORE</div>
+        </div>
+      </div>
+
+      <!-- Progress Bar -->
+      <div class="battle-progress-wrap">
+        <div class="battle-progress-a" id="progressA" style="width:50%;"></div>
+        <div class="battle-progress-b" id="progressB" style="width:50%;"></div>
+        <div class="battle-progress-center" id="progressCenter">Even ⚖️</div>
+      </div>
+
+      <!-- Score Formula Info -->
+      <div class="score-info">
+        <div class="score-info-item likes">
+          <span class="si-emoji">❤️</span>
+          <div>
+            <div>1 Like = 1 Point</div>
+            <div class="si-label">LIKES COUNT</div>
+          </div>
+        </div>
+        <div class="score-info-item coins">
+          <span class="si-emoji">🪙</span>
+          <div>
+            <div>1 Coin = 50 Points</div>
+            <div class="si-label">GIFTS COUNT MORE</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Duration selector + controls -->
+      <div class="battle-controls">
+        <div class="duration-row" id="durationRow">
+          <span class="duration-label">DURATION:</span>
+          <button class="duration-btn" onclick="setDuration(60,this)">1 min</button>
+          <button class="duration-btn active" onclick="setDuration(120,this)">2 min</button>
+          <button class="duration-btn" onclick="setDuration(180,this)">3 min</button>
+          <button class="duration-btn" onclick="setDuration(240,this)">4 min</button>
+          <button class="duration-btn" onclick="setDuration(300,this)">5 min</button>
+        </div>
+        <button class="ctrl-btn start" id="startBtn" onclick="startBattle()">⚔️ START BATTLE</button>
+        <button class="ctrl-btn stop" id="stopBtn" onclick="stopBattle()" disabled>🛑 End Battle</button>
+      </div>
+    </div>
+
+    <!-- WINNER PANEL — replaces battle content when battle ends -->
+    <div id="winnerPanel" style="display:none;">
+      <div class="winner-trophy" id="winnerTrophy">🏆</div>
+      <div class="winner-title" id="winnerTitle">WINNER</div>
+      <div class="winner-scores" id="winnerScores"></div>
+      <div class="winner-confetti">🎉</div>
+      <div class="winner-mvp" id="winnerMvp" style="display:none;"></div>
+      <button class="winner-new-battle-btn" onclick="dismissWinnerAndReset()">⚔️ NEW BATTLE START KARO</button>
+    </div>
+
+  </div>
+
+  <!-- Team Member Detail (top 5 per team) -->
+  <div class="teams-detail" id="teamsDetail" style="display:none;">
+    <div class="team-detail-card a">
+      <div class="tdc-title a">
+        <span>🔴 Team A</span>
+        <span id="tdc-count-a" style="color:var(--muted);">0 members</span>
+      </div>
+      <div id="tdcListA"><div class="no-members">Koi join nahi kiya</div></div>
+    </div>
+    <div class="team-detail-card b">
+      <div class="tdc-title b">
+        <span>🔵 Team B</span>
+        <span id="tdc-count-b" style="color:var(--muted);">0 members</span>
+      </div>
+      <div id="tdcListB"><div class="no-members">Koi join nahi kiya</div></div>
+    </div>
+  </div>
+
+  <!-- Main Leaderboards -->
+  <div class="two-col" id="liveGrid" style="display:none;">
+    <div class="section likes-section">
+      <div class="section-title pink">
+        <span>❤️ Top Likers</span>
+        <span class="section-badge pink">LIVE</span>
+      </div>
+      <div id="likesList"></div>
+    </div>
+    <div class="section gifts-section">
+      <div class="section-title cyan">
+        <span>💎 Top Gifters</span>
+        <span class="section-badge cyan">LIVE</span>
+      </div>
+      <div id="giftsList"></div>
+    </div>
+  </div>
+
+  <div class="footer" id="footer"></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  /* ══════════════════════════════════════════
+     HELPERS
+  ══════════════════════════════════════════ */
+  function esc(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+  function fmtNum(n){ return Number(n).toLocaleString('en-US'); }
+  function changed(a,b){ return JSON.stringify(a)!==JSON.stringify(b); }
+  function fmt(s){
+    s = Math.max(0, Math.floor(s));
+    var m = String(Math.floor(s/60)).padStart(2,'0');
+    var sc = String(s%60).padStart(2,'0');
+    return m+':'+sc;
+  }
+
+  /* User ki profile picture (avatar_thumb) render karo — agar URL na ho
+     to ek emoji fallback circle dikha do */
+  function avatarImg(url, cls){
+    cls = cls || 'avatar';
+    if(url){
+      return '<img class="'+cls+'" src="'+esc(url)+'" referrerpolicy="no-referrer" loading="lazy" '+
+             'onerror="this.outerHTML=\'<span class=\\\''+cls+' avatar-fallback\\\'>👤</span>\'">';
+    }
+    return '<span class="'+cls+' avatar-fallback">👤</span>';
+  }
+
+  /* ══════════════════════════════════════════
+     STATE
+  ══════════════════════════════════════════ */
+  var lastLive = null;
+  var lastLikes = null;
+  var lastGifts = null;
+  var medals = ['🥇','🥈','🥉'];
+  var selectedDuration = 120;   // matches default active button (2 min)
+  var lastWinner = null;
+
+  /* ── Smooth client-side timer ── */
+  var timerInterval = null;
+  var battleEndTime = null;
+
+  function startClientTimer(remaining){
+    clearInterval(timerInterval);
+    battleEndTime = Date.now() + remaining * 1000;
+    timerInterval = setInterval(function(){
+      var left = Math.max(0, Math.round((battleEndTime - Date.now()) / 1000));
+      var tv = document.getElementById('timerVal');
+      if(tv){
+        tv.textContent = fmt(left);
+        tv.classList.toggle('urgent', left <= 15 && left > 0);
+      }
+      if(left <= 0){
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+    }, 1000);
+  }
+
+  function stopClientTimer(){
+    clearInterval(timerInterval);
+    timerInterval = null;
+    battleEndTime = null;
+  }
+
+  function dismissWinnerAndReset(){
+    // Auto reset scores when starting new battle from winner screen
+    fetch('/api/battle/reset-scores', {method:'POST'}).catch(function(){});
+    document.getElementById('winnerPanel').style.display = 'none';
+    document.getElementById('battleContent').style.display = '';
+    document.getElementById('winnerMvp').style.display = 'none';
+    document.getElementById('startBtn').disabled = false;
+    document.getElementById('stopBtn').disabled = true;
+    document.getElementById('durationRow').style.opacity = '';
+    document.getElementById('durationRow').style.pointerEvents = '';
+    document.getElementById('timerVal').textContent = '—:——';
+    document.getElementById('timerVal').classList.remove('urgent');
+    lastWinner = null;
+    stopClientTimer();
+    setBattleIcons(false);
+  }
+
+  /* ══════════════════════════════════════════
+     DURATION SELECTOR
+  ══════════════════════════════════════════ */
+  function setDuration(sec, btn){
+    selectedDuration = sec;
+    document.querySelectorAll('.duration-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+  }
+
+  /* ══════════════════════════════════════════
+     TOAST
+  ══════════════════════════════════════════ */
+  var toastTimer = null;
+  function showToast(msg, cls){
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'show' + (cls ? ' '+cls : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ t.className = t.className.replace('show','').trim(); }, 3500);
+  }
+
+  /* ══════════════════════════════════════════
+     🔔 NOTIFICATION SYSTEM
+  ══════════════════════════════════════════ */
+  var shownNotifIds = new Set();
+  var activeNotifs = 0;
+  var notifQueue = [];
+  var MAX_VISIBLE = 4;
+
+  function processNotifications(notifs){
+    if(!notifs || !notifs.length) return;
+    notifs.forEach(function(n){
+      if(!shownNotifIds.has(n.id)){
+        shownNotifIds.add(n.id);
+        _queueNotif(n);
+      }
+    });
+    // Prevent set from growing infinitely
+    if(shownNotifIds.size > 500) shownNotifIds.clear();
+  }
+
+  function _queueNotif(n){
+    if(activeNotifs >= MAX_VISIBLE){
+      notifQueue.push(n);
+    } else {
+      _renderNotif(n);
+    }
+  }
+
+  function _renderNotif(n){
+    activeNotifs++;
+    var container = document.getElementById('notifContainer');
+    var el = document.createElement('div');
+    el.className = 'notif-card team-' + n.team.toLowerCase();
+
+    var icon = n.team === 'A' ? '🔴' : '🔵';
+    var teamColor = n.team === 'A' ? 'var(--pink)' : 'var(--cyan)';
+    el.innerHTML =
+      avatarImg(n.avatar, 'avatar sm')+
+      '<div class="notif-icon">'+icon+'</div>'+
+      '<div class="notif-body">'+
+        '<div class="notif-name">'+esc(n.nickname)+'</div>'+
+        '<div class="notif-msg">Team <strong style="color:'+teamColor+'">'+n.team+'</strong> mein aa gaya! 🎉</div>'+
+      '</div>'+
+      '<div class="notif-close" onclick="_dismissNotif(this)">✕</div>';
+
+    container.appendChild(el);
+    // Auto-dismiss after 4 s
+    setTimeout(function(){ _dismissNotif(el.querySelector('.notif-close')); }, 4000);
+  }
+
+  function _dismissNotif(closeEl){
+    var card = closeEl.closest ? closeEl.closest('.notif-card') : closeEl.parentNode;
+    if(!card || card.classList.contains('notif-exit')) return;
+    card.classList.add('notif-exit');
+    setTimeout(function(){
+      if(card.parentNode) card.parentNode.removeChild(card);
+      activeNotifs = Math.max(0, activeNotifs - 1);
+      if(notifQueue.length > 0 && activeNotifs < MAX_VISIBLE){
+        _renderNotif(notifQueue.shift());
+      }
+    }, 400);
+  }
+
+  /* ══════════════════════════════════════════
+     TEAM ICONS — battle mode swap
+  ══════════════════════════════════════════ */
+  var lastSa = 0, lastSb = 0;
+  var burstTimerA = null, burstTimerB = null;
+
+  function setBattleIcons(active){
+    var a = document.getElementById('iconA');
+    var b = document.getElementById('iconB');
+    if(!a || !b) return;
+    if(active){
+      a.textContent = '🥷'; a.className = 'team-icon battle-a';
+      b.textContent = '🤺'; b.className = 'team-icon battle-b';
+    } else {
+      a.textContent = '🔴'; a.className = 'team-icon';
+      b.textContent = '🔵'; b.className = 'team-icon';
+      lastSa = 0; lastSb = 0;
+      clearShake();
+    }
+  }
+
+  function triggerScoreBurst(side, sa, sb){
+    if(!document.getElementById('iconA')) return;
+    // Check if score increased
+    if(side === 'a' && sa > lastSa){
+      var el = document.getElementById('iconA');
+      clearTimeout(burstTimerA);
+      el.className = 'team-icon battle-a score-burst-a';
+      burstTimerA = setTimeout(function(){ el.className = 'team-icon battle-a'; }, 560);
+    }
+    if(side === 'b' && sb > lastSb){
+      var el = document.getElementById('iconB');
+      clearTimeout(burstTimerB);
+      el.className = 'team-icon battle-b score-burst-b';
+      burstTimerB = setTimeout(function(){ el.className = 'team-icon battle-b'; }, 560);
+    }
+    lastSa = sa;
+    lastSb = sb;
+  }
+
+  /* ══════════════════════════════════════════
+     SHAKE ENGINE — points speed se intensity
+  ══════════════════════════════════════════ */
+  var shakeHistory = { a: [], b: [] };
+  var shakeTimers  = { a: null, b: null };
+  var SHAKE_WINDOW = 4000; // ms — rate measured over last 4s
+  var SHAKE_DECAY  = 2500; // ms after no points, re-evaluate (decay)
+
+  function recordScore(side, score){
+    var now = Date.now();
+    shakeHistory[side].push({ t: now, s: score });
+    // Keep only entries within the window
+    while(shakeHistory[side].length > 1 && now - shakeHistory[side][0].t > SHAKE_WINDOW){
+      shakeHistory[side].shift();
+    }
+    _applyShake(side);
+    // Schedule a decay re-check after window expires
+    clearTimeout(shakeTimers[side]);
+    shakeTimers[side] = setTimeout(function(){ _applyShake(side); }, SHAKE_DECAY);
+  }
+
+  function _applyShake(side){
+    var cardId = side === 'a' ? 'teamACard' : 'teamBCard';
+    var card = document.getElementById(cardId);
+    if(!card) return;
+    card.classList.remove('shake-weak', 'shake-med', 'shake-strong');
+
+    var hist = shakeHistory[side];
+    var now  = Date.now();
+    var recent = hist.filter(function(x){ return now - x.t <= SHAKE_WINDOW; });
+    var rate = 0;
+    if(recent.length >= 2){
+      var gained  = recent[recent.length-1].s - recent[0].s;
+      var elapsed = (recent[recent.length-1].t - recent[0].t) / 1000;
+      rate = elapsed > 0 ? gained / elapsed : 0; // points per second
+    }
+
+    if(rate >= 80)      card.classList.add('shake-strong');
+    else if(rate >= 20) card.classList.add('shake-med');
+    else if(rate >= 4)  card.classList.add('shake-weak');
+    // rate < 4 = no shake — points ruk gaye
+  }
+
+  function clearShake(){
+    ['a','b'].forEach(function(s){
+      clearTimeout(shakeTimers[s]);
+      shakeHistory[s] = [];
+      var card = document.getElementById(s === 'a' ? 'teamACard' : 'teamBCard');
+      if(card) card.classList.remove('shake-weak','shake-med','shake-strong');
+    });
+  }
+
+  /* ══════════════════════════════════════════
+     BATTLE CONTROLS
+  ══════════════════════════════════════════ */
+  async function startBattle(){
+    try {
+      var r = await fetch('/api/battle/start', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({duration: selectedDuration})
+      });
+      if(r.ok){
+        document.getElementById('startBtn').disabled = true;
+        document.getElementById('stopBtn').disabled = false;
+        document.getElementById('durationRow').style.opacity = '0.4';
+        document.getElementById('durationRow').style.pointerEvents = 'none';
+        document.getElementById('winnerPanel').style.display = 'none';
+        document.getElementById('battleContent').style.display = '';
+        document.getElementById('winnerMvp').style.display = 'none';
+        lastWinner = null;
+        startClientTimer(selectedDuration);
+        setBattleIcons(true);
+        showToast('⚔️ Battle Started! '+fmt(selectedDuration)+' mein khatam hogi!');
+      }
+    } catch(e){ showToast('Error: could not start battle'); }
+  }
+
+  async function stopBattle(){
+    try {
+      var r = await fetch('/api/battle/end', {method:'POST'});
+      if(r.ok){
+        document.getElementById('startBtn').disabled = false;
+        document.getElementById('stopBtn').disabled = true;
+        document.getElementById('durationRow').style.opacity = '';
+        document.getElementById('durationRow').style.pointerEvents = '';
+        setBattleIcons(false);
+        stopClientTimer();
+      }
+    } catch(e){}
+  }
+
+  function _resetBattleUI(clearTeams){
+    document.getElementById('startBtn').disabled = false;
+    document.getElementById('stopBtn').disabled = true;
+    document.getElementById('durationRow').style.opacity = '';
+    document.getElementById('durationRow').style.pointerEvents = '';
+    if(clearTeams){
+      document.getElementById('winnerPanel').style.display = 'none';
+      document.getElementById('battleContent').style.display = '';
+      document.getElementById('winnerMvp').style.display = 'none';
+      document.getElementById('teamACard').classList.remove('winning-a','winning-b');
+      document.getElementById('teamBCard').classList.remove('winning-a','winning-b');
+      lastWinner = null;
+    }
+    document.getElementById('timerVal').textContent = '—:——';
+    document.getElementById('timerVal').classList.remove('urgent');
+    document.getElementById('scoreA').textContent = '0';
+    document.getElementById('scoreB').textContent = '0';
+    stopClientTimer();
+  }
+
+  /* ══════════════════════════════════════════
+     UPDATE BATTLE UI
+  ══════════════════════════════════════════ */
+  // end_time se fresh battle track karo — yeh har battle ka unique identifier hai
+  var lastEndTime = 0;
+
+  function updateBattle(b){
+    if(!b) return;
+
+    // ── Fresh battle detect: end_time badal gaya = naya battle shuru ──
+    // Yeh 100% reliable hai — lastBattleActive se zyada accurate
+    var freshStart = b.active && b.end_time && (b.end_time !== lastEndTime);
+    if(b.end_time) lastEndTime = b.end_time;
+
+    if(freshStart){
+      // Foran sab kuch zero karo — koi bhi purana data na dikhe
+      lastWinner = null;
+      document.getElementById('winnerPanel').style.display = 'none';
+      document.getElementById('battleContent').style.display = '';
+      document.getElementById('winnerMvp').style.display = 'none';
+      document.getElementById('scoreA').textContent = '0';
+      document.getElementById('scoreB').textContent = '0';
+      document.getElementById('progressA').style.width = '50%';
+      document.getElementById('progressB').style.width = '50%';
+      document.getElementById('progressCenter').textContent = 'Even ⚖️';
+      document.getElementById('teamACard').classList.remove('winning-a','winning-b');
+      document.getElementById('teamBCard').classList.remove('winning-a','winning-b');
+      stopClientTimer();
+      startClientTimer(b.remaining);
+      setBattleIcons(true);
+      clearShake();
+    }
+
+    var sa = b.score_a, sb = b.score_b, total = sa+sb;
+
+    // Score burst animation — jis side score badha us ka icon animate karo
+    if(b.active){
+      if(sa > lastSa){ triggerScoreBurst('a', sa, sb); recordScore('a', sa); }
+      else if(sb > lastSb){ triggerScoreBurst('b', sa, sb); recordScore('b', sb); }
+      else { lastSa = sa; lastSb = sb; }
+    }
+
+    // Scores & member counts
+    document.getElementById('scoreA').textContent = fmtNum(sa);
+    document.getElementById('scoreB').textContent = fmtNum(sb);
+    document.getElementById('countA').textContent = b.count_a;
+    document.getElementById('countB').textContent = b.count_b;
+
+    // Progress bar
+    var pctA = total>0 ? Math.round(sa/total*100) : 50;
+    var pctB = total>0 ? Math.round(sb/total*100) : 50;
+    document.getElementById('progressA').style.width = pctA+'%';
+    document.getElementById('progressB').style.width = pctB+'%';
+
+    var center;
+    if(total===0)  center = 'Even ⚖️';
+    else if(sa>sb) center = 'A leads +'+fmtNum(sa-sb);
+    else if(sb>sa) center = 'B leads +'+fmtNum(sb-sa);
+    else           center = 'Tie! ⚖️';
+    document.getElementById('progressCenter').textContent = center;
+
+    // Winning glow
+    var cardA = document.getElementById('teamACard');
+    var cardB = document.getElementById('teamBCard');
+    cardA.classList.remove('winning-a','winning-b');
+    cardB.classList.remove('winning-a','winning-b');
+    if(b.active && sa>sb){ cardA.classList.add('winning-a'); cardB.classList.add('winning-a'); }
+    if(b.active && sb>sa){ cardB.classList.add('winning-b'); cardA.classList.add('winning-b'); }
+
+    // Timer
+    var tv = document.getElementById('timerVal');
+    if(b.active){
+      if(!timerInterval){
+        startClientTimer(b.remaining);
+      }
+    } else if(!b.winner){
+      stopClientTimer();
+      tv.textContent = '—:——';
+      tv.classList.remove('urgent');
+    }
+
+    // Winner panel — sirf winner change par show karo
+    if(!b.winner && lastWinner){
+      lastWinner = null;
+      document.getElementById('winnerPanel').style.display = 'none';
+      document.getElementById('battleContent').style.display = '';
+    }
+    if(b.winner && b.winner !== lastWinner){
+      lastWinner = b.winner;
+      showWinner(b.winner, sa, sb, b.top_a, b.top_b);
+      stopClientTimer();
+      setBattleIcons(false);
+      document.getElementById('startBtn').disabled = false;
+      document.getElementById('stopBtn').disabled = true;
+      document.getElementById('durationRow').style.opacity = '';
+      document.getElementById('durationRow').style.pointerEvents = '';
+    }
+
+    // Team detail lists
+    renderTeamDetail('tdcListA','tdc-count-a', b.top_a, 'a', b.count_a);
+    renderTeamDetail('tdcListB','tdc-count-b', b.top_b, 'b', b.count_b);
+    document.getElementById('teamsDetail').style.display = '';
+  }
+
+  function renderTeamDetail(listId, countId, members, team, total){
+    document.getElementById(countId).textContent = total+' members';
+    var el = document.getElementById(listId);
+    if(!members || members.length===0){
+      el.innerHTML = '<div class="no-members">Koi join nahi kiya<br><small style="color:#2d3748">!'+team.toUpperCase()+' comment karo</small></div>';
+      return;
+    }
+    el.innerHTML = members.map(function(m,i){
+      var pts = m.likes*1 + (m.coins||0)*50;
+      var teamColor = team === 'a' ? 'var(--pink)' : 'var(--cyan)';
+      return '<div class="member-row">'+
+        avatarImg(m.avatar, 'avatar')+
+        '<span style="font-size:1rem;margin:0 4px;">'+(i===0?'👑':'#'+(i+1))+'</span>'+
+        '<span class="member-name">'+esc(m.nickname)+'</span>'+
+        '<span class="member-pts" style="color:'+teamColor+';">'+fmtNum(pts)+' pts</span>'+
+      '</div>';
+    }).join('');
+  }
+
+  function showWinner(winner, sa, sb, topA, topB){
+    // Battle content hide karo, winner panel dikhao
+    document.getElementById('battleContent').style.display = 'none';
+    document.getElementById('winnerPanel').style.display = '';
+
+    var trophy  = document.getElementById('winnerTrophy');
+    var title   = document.getElementById('winnerTitle');
+    var scores  = document.getElementById('winnerScores');
+    var mvpBox  = document.getElementById('winnerMvp');
+    scores.innerHTML =
+      '<span class="winner-score-a">A: '+fmtNum(sa)+'</span>'+
+      '<span style="color:var(--muted)">vs</span>'+
+      '<span class="winner-score-b">B: '+fmtNum(sb)+'</span>';
+
+    if(winner==='A'){
+      trophy.textContent = '🏆';
+      title.className = 'winner-title a'; title.textContent = '🔴 TEAM A JEET GAYI!';
+      showToast('🏆 TEAM A NE JEETA! Score: '+fmtNum(sa)+' vs '+fmtNum(sb), 'win-a');
+    } else if(winner==='B'){
+      trophy.textContent = '🏆';
+      title.className = 'winner-title b'; title.textContent = '🔵 TEAM B JEET GAYI!';
+      showToast('🏆 TEAM B NE JEETA! Score: '+fmtNum(sb)+' vs '+fmtNum(sa), 'win-b');
+    } else {
+      trophy.textContent = '🤝';
+      title.className = 'winner-title draw'; title.textContent = '⚖️ DRAW HAI!';
+      showToast('⚖️ BARABAR! Dono teams ne same score kiya!');
+    }
+
+    // 🏅 MVP — winning team ka sabse top scorer (avatar + naam)
+    var teamList = winner==='A' ? topA : (winner==='B' ? topB : null);
+    var mvp = teamList && teamList.length ? teamList[0] : null;
+
+    if(mvp){
+      var tc = winner==='A' ? 'a' : 'b';
+      var pts = (mvp.likes||0)*1 + (mvp.coins||0)*50;
+      mvpBox.innerHTML =
+        '<div class="winner-mvp-label">🏅 Top Player (MVP)</div>'+
+        '<div class="winner-mvp-avatar-wrap">'+
+          '<div class="mvp-ring"></div>'+
+          '<div class="mvp-ring r2"></div>'+
+          '<span class="winner-mvp-crown">👑</span>'+
+          avatarImg(mvp.avatar, 'winner-mvp-avatar '+tc)+
+        '</div>'+
+        '<div class="winner-mvp-name">'+esc(mvp.nickname)+'</div>'+
+        '<div class="winner-mvp-pts '+tc+'">'+fmtNum(pts)+' pts</div>';
+      mvpBox.style.display = 'flex';
+    } else {
+      mvpBox.style.display = 'none';
+      mvpBox.innerHTML = '';
+    }
+  }
+
+  /* ══════════════════════════════════════════
+     LEADERBOARD ROWS
+  ══════════════════════════════════════════ */
+  function buildRows(data, scoreKey, scoreClass, prefix, teamMap){
+    return data.map(function(u,i){
+      var rank = i<3 ? '<span class="rank-badge">'+medals[i]+'</span>'
+                     : '<span class="rank-num">'+(i+1)+'</span>';
+      var crown = i===0 ? '<span class="crown">👑</span>' : '';
+      var tag = teamMap && teamMap[u.nickname]
+        ? '<span class="team-tag '+teamMap[u.nickname]+'">'+teamMap[u.nickname].toUpperCase()+'</span>'
+        : '';
+      return '<div class="lb-row" data-rank="'+i+'">'+rank+
+        avatarImg(u.avatar)+
+        '<span class="user-name">'+esc(u.nickname)+crown+tag+'</span>'+
+        '<span class="score '+scoreClass+'">'+prefix+' '+fmtNum(u[scoreKey])+'</span>'+
+      '</div>';
+    }).join('');
+  }
+
+  /* ══════════════════════════════════════════
+     UPDATE UI — polling aur SSE dono yahi call karte hain
+  ══════════════════════════════════════════ */
+  function applyData(data){
+    // Streamer name
+    var nameEl = document.getElementById('streamerName');
+    var wn = '@' + data.streamer;
+    if(nameEl.textContent !== wn) nameEl.textContent = wn;
+
+    // Live status badge
+    if(data.is_live !== lastLive){
+      var badge = document.getElementById('statusBadge');
+      var sText = document.getElementById('statusText');
+      if(data.is_live){
+        badge.className = 'status-badge live';
+        sText.textContent = 'LIVE';
+        document.getElementById('offlineBanner').style.display = 'none';
+        document.getElementById('statsBar').style.display = '';
+        document.getElementById('liveGrid').style.display = '';
+        if(!data.battle || !data.battle.active) showToast('🎮 Stream LIVE ho gayi!');
+      } else {
+        badge.className = 'status-badge offline';
+        sText.textContent = 'OFFLINE';
+        document.getElementById('offlineBanner').style.display = '';
+        document.getElementById('statsBar').style.display = 'none';
+        document.getElementById('liveGrid').style.display = 'none';
+      }
+      lastLive = data.is_live;
+    }
+
+    if(data.notifications) processNotifications(data.notifications);
+    if(data.battle) updateBattle(data.battle);
+
+    var teamMap = {};
+    if(data.battle){
+      (data.battle.all_a||[]).forEach(function(nick){ teamMap[nick] = 'a'; });
+      (data.battle.all_b||[]).forEach(function(nick){ teamMap[nick] = 'b'; });
+    }
+
+    if(data.is_live){
+      document.getElementById('totalLikes').textContent = fmtNum(data.total_likes||0);
+      document.getElementById('totalCoins').textContent = fmtNum(data.total_coins||0);
+
+      if(changed(lastLikes, data.likes)){
+        document.getElementById('likesList').innerHTML =
+          data.likes && data.likes.length
+            ? buildRows(data.likes,'likes','likes','❤️',teamMap)
+            : '<div class="empty-state">Waiting for likes…</div>';
+        lastLikes = JSON.parse(JSON.stringify(data.likes||[]));
+      }
+      if(changed(lastGifts, data.gifts)){
+        document.getElementById('giftsList').innerHTML =
+          data.gifts && data.gifts.length
+            ? buildRows(data.gifts,'coins','coins','💰',teamMap)
+            : '<div class="empty-state">Waiting for gifts…</div>';
+        lastGifts = JSON.parse(JSON.stringify(data.gifts||[]));
+      }
+    }
+
+    document.getElementById('footer').textContent = 'Updated ' + new Date().toLocaleTimeString();
+  }
+
+  /* ══════════════════════════════════════════
+     SSE CONNECTION — polling ki jagah server push
+     Polling (setInterval) se ~1500ms delay tha.
+     SSE se ~50ms mein update milta hai.
+  ══════════════════════════════════════════ */
+  var sseRetryDelay = 1000;
+
+  function connectSSE(){
+    var es = new EventSource('/api/stream');
+
+    es.onmessage = function(e){
+      try {
+        var data = JSON.parse(e.data);
+        applyData(data);
+        sseRetryDelay = 1000; // reset on success
+      } catch(err){}
+    };
+
+    es.onerror = function(){
+      es.close();
+      // SSE fail hone par polling fallback
+      console.warn('[SSE] Disconnected — ' + sseRetryDelay + 'ms mein retry...');
+      setTimeout(function(){
+        sseRetryDelay = Math.min(sseRetryDelay * 2, 15000); // exponential backoff
+        connectSSE();
+      }, sseRetryDelay);
+    };
+  }
+
+  // SSE support check karo, nahi to polling fallback
+  if(typeof EventSource !== 'undefined'){
+    connectSSE();
+  } else {
+    // Old browser fallback — polling
+    async function pollFallback(){
+      try {
+        var res = await fetch('/api/data', {cache:'no-store'});
+        applyData(await res.json());
+      } catch(e){}
+    }
+    pollFallback();
+    setInterval(pollFallback, 2000);
+  }
+</script>
+</body>
+</html>
