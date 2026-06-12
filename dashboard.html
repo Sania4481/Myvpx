@@ -830,7 +830,9 @@
   function avatarImg(url, cls){
     cls = cls || 'avatar';
     if(url){
-      return '<img class="'+cls+'" src="'+esc(url)+'" referrerpolicy="no-referrer" loading="lazy" '+
+      // Backend proxy se load karo — TikTok CDN CORS bypass
+      var proxied = '/api/avatar?url=' + encodeURIComponent(url);
+      return '<img class="'+cls+'" src="'+proxied+'" loading="lazy" '+
              'onerror="this.outerHTML=\'<span class=\\\''+cls+' avatar-fallback\\\'>👤</span>\'">';
     }
     return '<span class="'+cls+' avatar-fallback">👤</span>';
