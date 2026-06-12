@@ -147,16 +147,23 @@ threading.Thread(target=background_worker, daemon=True).start()
 # ══════════════════════════════════════════
 def extract_avatar_url(user) -> str:
     """
-    event.user.avatar_thumb (ya avatar_medium/avatar_large) ek ImageModel hota hai
-    jiska url_list field mein CDN image URLs ki list hoti hai.
-    Yahan se pehla available URL nikal lete hain.
+    avatar_thumb / avatar_medium / avatar_large ka url_list fetch karo.
+    TikTok CDN pe kuch URLs signed hain (403) — sabse accessible URL dhundo.
     """
     for attr in ("avatar_thumb", "avatar_medium", "avatar_large"):
         try:
             img = getattr(user, attr, None)
             url_list = getattr(img, "url_list", None)
-            if url_list:
-                return url_list[0]
+            if not url_list:
+                continue
+            # Prefer muscdn / non-sign URLs — ye publicly accessible hote hain
+            for u in url_list:
+                if u and ("muscdn.com" in u or "tiktokcdn-us.com" in u):
+                    return u
+            # Fallback: pehla available URL
+            for u in url_list:
+                if u:
+                    return u
         except Exception:
             pass
     return ""
