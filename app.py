@@ -21,7 +21,7 @@ except ImportError:
 
 app = Flask(__name__)
 
-TIKTOK_USERNAME = "@ganji_live_8"
+TIKTOK_USERNAME = "@exir707"
 
 # ══════════════════════════════════════════
 # GLOBAL STATE
@@ -494,25 +494,54 @@ def proxy_avatar():
     allowed = ("tiktokcdn.com", "tiktokcdn-us.com", "musical.ly",
                "p16-sign", "p19-sign", "p77-sign", "p16-amd")
     if not url or not any(d in url for d in allowed):
-        return "", 400
+        return jsonify({"error": "Invalid or missing avatar URL"}), 400
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Referer": "https://www.tiktok.com/",
+        "Accept": "image/webp,image/apng,image/*,*/*;q=0.8",
+    }
+
     try:
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            "Referer": "https://www.tiktok.com/",
-            "Accept": "image/webp,image/apng,image/*,*/*;q=0.8",
-        }
         r = req_lib.get(url, headers=headers, timeout=8, stream=True)
-        if r.status_code != 200:
-            return "", 404
-        ct = r.headers.get("Content-Type", "image/jpeg")
-        return Response(
-            r.content,
-            content_type=ct,
-            headers={"Cache-Control": "public, max-age=3600"}
-        )
-    except Exception as e:
-        print(f"[Avatar Proxy] Error: {e}")
-        return "", 404
+    except req_lib.exceptions.ConnectTimeout:
+        print(f"[Avatar Proxy] Connect timeout: {url}")
+        return jsonify({"error": "TikTok CDN connect timeout"}), 504
+    except req_lib.exceptions.ReadTimeout:
+        print(f"[Avatar Proxy] Read timeout: {url}")
+        return jsonify({"error": "TikTok CDN read timeout"}), 504
+    except req_lib.exceptions.ConnectionError as e:
+        print(f"[Avatar Proxy] Connection error: {e}")
+        return jsonify({"error": "TikTok CDN unreachable"}), 502
+    except req_lib.exceptions.TooManyRedirects:
+        print(f"[Avatar Proxy] Too many redirects: {url}")
+        return jsonify({"error": "TikTok CDN redirect loop"}), 502
+    except req_lib.exceptions.RequestException as e:
+        print(f"[Avatar Proxy] Request failed: {e}")
+        return jsonify({"error": "Failed to fetch avatar"}), 502
+
+    if r.status_code == 403:
+        print(f"[Avatar Proxy] CDN returned 403 (signed URL expired): {url}")
+        return jsonify({"error": "Avatar URL expired"}), 410
+    if r.status_code == 404:
+        return jsonify({"error": "Avatar not found on CDN"}), 404
+    if r.status_code >= 500:
+        print(f"[Avatar Proxy] CDN server error {r.status_code}: {url}")
+        return jsonify({"error": "TikTok CDN server error"}), 502
+    if r.status_code != 200:
+        print(f"[Avatar Proxy] Unexpected status {r.status_code}: {url}")
+        return jsonify({"error": f"CDN returned {r.status_code}"}), 502
+
+    ct = r.headers.get("Content-Type", "image/jpeg")
+    if not ct.startswith("image/"):
+        print(f"[Avatar Proxy] Non-image Content-Type: {ct}")
+        return jsonify({"error": "CDN returned non-image content"}), 502
+
+    return Response(
+        r.content,
+        content_type=ct,
+        headers={"Cache-Control": "public, max-age=3600"}
+    )
 
 
 @app.route("/api/battle/start", methods=["POST"])
