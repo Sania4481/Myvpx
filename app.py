@@ -5,6 +5,7 @@ import queue
 import threading
 import time
 import uuid
+import urllib.request
 
 from flask import Flask, Response, jsonify, request, send_file
 
@@ -458,6 +459,30 @@ def stream():
 @app.route("/api/data")
 def get_data():
     return jsonify(state)
+
+
+@app.route("/api/avatar")
+def proxy_avatar():
+    """TikTok CDN avatar URLs ko proxy karo — browser CORS bypass"""
+    url = request.args.get("url", "").strip()
+    # Sirf TikTok CDN URLs allow karo
+    allowed = ("tiktokcdn.com", "tiktokcdn-us.com", "musical.ly",
+               "p16-sign", "p19-sign", "p77-sign", "p16-amd")
+    if not url or not any(d in url for d in allowed):
+        return "", 400
+    try:
+        req = urllib.request.Request(url, headers={
+            "User-Agent": "Mozilla/5.0",
+            "Referer": "https://www.tiktok.com/"
+        })
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = resp.read()
+            ct = resp.headers.get("Content-Type", "image/jpeg")
+        return Response(data, content_type=ct, headers={
+            "Cache-Control": "public, max-age=3600"
+        })
+    except Exception:
+        return "", 404
 
 
 @app.route("/api/battle/start", methods=["POST"])
