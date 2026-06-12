@@ -147,16 +147,25 @@ threading.Thread(target=background_worker, daemon=True).start()
 # ══════════════════════════════════════════
 def extract_avatar_url(user) -> str:
     """
-    avatar_thumb / avatar_medium / avatar_large ka url_list fetch karo.
-    TikTok CDN pe kuch URLs signed hain (403) — sabse accessible URL dhundo.
+    avatar_thumb / avatar_medium / avatar_large se URL nikaalo.
+    TikTokLive v7 mein url_list hai, v6.x mein m_urls hai — dono handle karo.
     """
-    for attr in ("avatar_thumb", "avatar_medium", "avatar_large"):
+    for attr in ("avatar_thumb", "avatar_medium", "avatar_large", "avatar_jpg"):
         try:
             img = getattr(user, attr, None)
-            url_list = getattr(img, "url_list", None)
+            if not img:
+                continue
+            # v6.x (render/PyPI stable) uses m_urls, v7 (beta) uses url_list
+            url_list = (
+                getattr(img, "m_urls", None)
+                or getattr(img, "url_list", None)
+                or getattr(img, "urls", None)
+            )
+            # Some versions may store avatar as a direct string URL
+            if not url_list and isinstance(img, str) and img.startswith("http"):
+                return img
             if not url_list:
                 continue
-            print(f"[Avatar] {attr} url_list: {url_list}")
             # Prefer muscdn / non-sign URLs — ye publicly accessible hote hain
             for u in url_list:
                 if u and ("muscdn.com" in u or "tiktokcdn-us.com" in u):
