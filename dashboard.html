@@ -826,17 +826,39 @@
   }
 
   /* User ki profile picture (avatar_thumb) render karo — agar URL na ho
-     to ek emoji fallback circle dikha do */
+     to ek emoji fallback circle dikha do.
+     Error par retry karo (max 2 retries, 1.5s + 3s delay). */
+  var AVATAR_MAX_RETRIES = 2;
+  var AVATAR_RETRY_DELAYS = [1500, 3000];
+
   function avatarImg(url, cls){
     cls = cls || 'avatar';
     if(url){
-      return '<img class="'+cls+'" src="'+esc(url)+'" '
-           + 'referrerpolicy="no-referrer" '
-           + 'crossorigin="anonymous" '
+      var proxied = '/api/avatar?url=' + encodeURIComponent(url);
+      return '<img class="'+cls+'" src="'+esc(proxied)+'" '
+           + 'data-original-url="'+esc(url)+'" data-retry="0" '
            + 'loading="lazy" '
-           + 'onerror="this.onerror=null;this.src=\'\';;this.outerHTML=\'<span class=\\\''+cls+' avatar-fallback\\\'>👤</span>\'">';
+           + 'onerror="retryAvatar(this)">';
     }
     return '<span class="'+cls+' avatar-fallback">👤</span>';
+  }
+
+  function retryAvatar(img){
+    var retry = parseInt(img.getAttribute('data-retry') || '0', 10);
+    var origUrl = img.getAttribute('data-original-url') || '';
+    if(retry < AVATAR_MAX_RETRIES && origUrl){
+      img.setAttribute('data-retry', retry + 1);
+      var delay = AVATAR_RETRY_DELAYS[retry] || 3000;
+      img.style.opacity = '0.3';
+      setTimeout(function(){
+        img.src = '/api/avatar?url=' + encodeURIComponent(origUrl) + '&_r=' + (retry + 1);
+        img.style.opacity = '';
+      }, delay);
+    } else {
+      var cls = img.className;
+      img.onerror = null;
+      img.outerHTML = '<span class="'+cls+' avatar-fallback">👤</span>';
+    }
   }
 
   /* ══════════════════════════════════════════
