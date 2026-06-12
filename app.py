@@ -10,7 +10,7 @@ import urllib.request
 from flask import Flask, Response, jsonify, request, send_file
 
 from TikTokLive import TikTokLiveClient
-from TikTokLive.events import CommentEvent, LikeEvent, GiftEvent, DisconnectEvent
+from TikTokLive.events import CommentEvent, LikeEvent, GiftEvent, DisconnectEvent, ConnectEvent
 
 try:
     from TikTokLive.client.web.web_defaults import WebDefaults
@@ -20,7 +20,7 @@ except ImportError:
 
 app = Flask(__name__)
 
-TIKTOK_USERNAME = "@nongthituyet"
+TIKTOK_USERNAME = "@nongthituyet00"
 
 # ══════════════════════════════════════════
 # GLOBAL STATE
@@ -347,13 +347,22 @@ async def on_gift(event: GiftEvent):
         push_state()
 
 
+async def on_connect(event: ConnectEvent):
+    """Sirf tab is_live=True karo jab TikTok confirm kare ke connected hai"""
+    state["is_live"] = True
+    push_state()
+    print(f"[TikTokLive] ✅ Connected to {TIKTOK_USERNAME} live stream!")
+
+
 async def on_disconnect(event: DisconnectEvent):
     state["is_live"] = False
     push_state()
+    print(f"[TikTokLive] ❌ Disconnected from {TIKTOK_USERNAME}.")
 
 
 def create_client() -> TikTokLiveClient:
     c = TikTokLiveClient(unique_id=TIKTOK_USERNAME)
+    c.add_listener(ConnectEvent, on_connect)
     c.add_listener(CommentEvent, on_comment)
     c.add_listener(LikeEvent, on_like)
     c.add_listener(GiftEvent, on_gift)
@@ -377,8 +386,6 @@ def run_tiktok_client():
         try:
             c = create_client()
             print(f"[TikTokLive] Checking if {TIKTOK_USERNAME} is live...")
-            state["is_live"] = True
-            push_state()
             loop.run_until_complete(c.connect())
             # connect() returns normally when stream ends
             print(f"[TikTokLive] Stream ended for {TIKTOK_USERNAME}.")
