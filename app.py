@@ -421,6 +421,35 @@ async def on_disconnect(event: DisconnectEvent):
 
 
 _tiktok_reconnect = threading.Event()
+_current_client = None
+_client_lock = threading.Lock()
+
+
+def _disconnect_current_client():
+    """Agar koi active TikTok client hai to usko force disconnect karo."""
+    with _client_lock:
+        c = _current_client
+    if c is None:
+        return
+    try:
+        # TikTokLive client ka disconnect — connection tod deta hai
+        # connect() unblock ho jayega aur loop restart karega
+        import asyncio as _aio
+        loop = getattr(c, '_ws', None) and getattr(c, '_event_loop', None)
+        if hasattr(c, 'disconnect'):
+            # Try async disconnect from sync context
+            try:
+                fut = asyncio.run_coroutine_threadsafe(c.disconnect(), c._event_loop)
+                fut.result(timeout=3)
+            except Exception:
+                pass
+        if hasattr(c, 'close'):
+            try:
+                c.close()
+            except Exception:
+                pass
+    except Exception as e:
+        print(f"[TikTokLive] Force disconnect error (safe to ignore): {e}")
 
 
 def create_client() -> TikTokLiveClient:
@@ -441,7 +470,7 @@ def run_tiktok_client():
     - Agar live khatam ho → disconnect, wapas polling mode
     - Agar username change ho → turant reconnect karo
     """
-    global TIKTOK_USERNAME
+    global TIKTOK_USERNAME, _current_client
     POLL_INTERVAL   = 30   # seconds — live nahi to kitni der baad check karo
     RECONNECT_DELAY = 10   # seconds — live tha, disconnect hua, reconnect delay
 
@@ -454,18 +483,32 @@ def run_tiktok_client():
         asyncio.set_event_loop(loop)
         try:
             c = create_client()
+            with _client_lock:
+                _current_client = c
             print(f"[TikTokLive] Checking if {current_username} is live...")
             loop.run_until_complete(c.connect())
             # connect() returns normally when stream ends
             print(f"[TikTokLive] Stream ended for {current_username}.")
             state["is_live"] = False
             push_state()
-            if _tiktok_reconnect.wait(timeout=RECONNECT_DELAY):
+
+            # Username change hua kya? Agar haan to skip delay
+            if _tiktok_reconnect.is_set():
                 print(f"[TikTokLive] Username changed, reconnecting immediately...")
+                continue
+            if _tiktok_reconnect.wait(timeout=RECONNECT_DELAY):
+                print(f"[TikTokLive] Username changed during wait, reconnecting immediately...")
                 continue
 
         except Exception as e:
             err = str(e).lower()
+            # Username change ke wajah se disconnect hua — quickly restart
+            if _tiktok_reconnect.is_set():
+                print(f"[TikTokLive] Reconnecting for new username: {TIKTOK_USERNAME}...")
+                state["is_live"] = False
+                push_state()
+                continue
+
             # User not live — expected error, poll quietly
             if any(x in err for x in ["not live", "not_live", "not currently live",
                                        "room_id", "failed to retrieve", "not found",
@@ -486,6 +529,8 @@ def run_tiktok_client():
                     print(f"[TikTokLive] Username changed, reconnecting immediately...")
                     continue
         finally:
+            with _client_lock:
+                _current_client = None
             try:
                 loop.close()
             except Exception:
@@ -636,7 +681,9 @@ def save_settings():
     if old_username != new_username:
         state["is_live"] = False
         push_state()
+        # Pehle signal set karo, phir active client ko force disconnect karo
         _tiktok_reconnect.set()
+        _disconnect_current_client()
         print(f"[Settings] Username changed: {old_username} → {new_username}")
 
     return jsonify({"status": "success", "username": new_username})
