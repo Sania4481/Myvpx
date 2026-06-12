@@ -624,6 +624,80 @@
 
     .footer { text-align: center; padding: 10px 0 6px; font-size: 0.62rem; color: #2d3748; }
     @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+
+    /* ══════════════════════════════════════
+       ⚙️  SETTINGS GEAR BUTTON + MODAL
+    ══════════════════════════════════════ */
+    .gear-btn {
+      position: absolute; top: 12px; right: 12px;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 50%; width: 34px; height: 34px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 1rem; transition: all 0.2s;
+      color: var(--muted); z-index: 2;
+    }
+    .gear-btn:hover { background: rgba(180,74,255,0.15); border-color: var(--purple); color: var(--purple); transform: rotate(30deg); }
+
+    .settings-overlay {
+      display: none; position: fixed; inset: 0; z-index: 2000;
+      background: rgba(0,0,0,0.75); backdrop-filter: blur(4px);
+      align-items: center; justify-content: center;
+    }
+    .settings-overlay.open { display: flex; }
+
+    .settings-modal {
+      background: #0f0f1a; border: 1px solid rgba(180,74,255,0.35);
+      border-radius: 22px; padding: 24px 22px;
+      width: min(94vw, 360px); box-shadow: 0 8px 48px rgba(0,0,0,0.7);
+      animation: fadeIn 0.25s ease;
+    }
+    .settings-modal h2 {
+      font-family: 'Rajdhani', sans-serif; font-size: 1.2rem; font-weight: 700;
+      letter-spacing: 2px; text-transform: uppercase; color: var(--purple);
+      margin-bottom: 18px; display: flex; align-items: center; gap: 8px;
+    }
+    .settings-label {
+      font-size: 0.65rem; font-weight: 800; text-transform: uppercase;
+      letter-spacing: 1.5px; color: var(--muted); margin-bottom: 7px;
+    }
+    .settings-input {
+      width: 100%; background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.12); border-radius: 12px;
+      padding: 11px 14px; color: var(--text); font-size: 0.95rem;
+      font-family: 'Inter', sans-serif; outline: none; transition: border-color 0.2s;
+    }
+    .settings-input:focus { border-color: var(--purple); }
+    .settings-input.err  { border-color: var(--pink); }
+    .settings-hint {
+      font-size: 0.62rem; color: var(--muted); margin-top: 6px;
+    }
+    .settings-error {
+      font-size: 0.72rem; color: var(--pink); margin-top: 6px;
+      min-height: 18px; font-weight: 600;
+    }
+    .settings-btns {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 18px;
+    }
+    .settings-save {
+      background: linear-gradient(135deg, rgba(180,74,255,0.25), rgba(76,201,240,0.2));
+      border: 1px solid rgba(180,74,255,0.5); border-radius: 12px;
+      color: var(--purple); font-family: 'Rajdhani', sans-serif;
+      font-size: 0.95rem; font-weight: 700; letter-spacing: 1.5px;
+      text-transform: uppercase; padding: 12px; cursor: pointer; transition: all 0.2s;
+    }
+    .settings-save:hover:not(:disabled) { border-color: var(--purple); box-shadow: 0 0 16px rgba(180,74,255,0.3); }
+    .settings-save:disabled { opacity: 0.4; cursor: not-allowed; }
+    .settings-cancel {
+      background: transparent; border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px; color: var(--muted);
+      font-family: 'Rajdhani', sans-serif; font-size: 0.95rem; font-weight: 700;
+      letter-spacing: 1px; text-transform: uppercase; padding: 12px; cursor: pointer; transition: all 0.2s;
+    }
+    .settings-cancel:hover { border-color: var(--text); color: var(--text); }
+    .settings-saving {
+      font-size: 0.72rem; color: var(--purple); text-align: center;
+      margin-top: 10px; min-height: 18px; font-weight: 700; letter-spacing: 1px;
+    }
   </style>
 </head>
 <body>
@@ -631,10 +705,29 @@
 <!-- 🔔 Notification Container (fixed, top-right) -->
 <div id="notifContainer" class="notif-container"></div>
 
+<!-- ⚙️ Settings Modal -->
+<div class="settings-overlay" id="settingsOverlay" onclick="if(event.target===this) closeSettings()">
+  <div class="settings-modal">
+    <h2>⚙️ Settings</h2>
+    <div class="settings-label">TikTok Username</div>
+    <input class="settings-input" id="settingsInput" type="text"
+      placeholder="@username" autocomplete="off" autocorrect="off"
+      spellcheck="false" onkeydown="if(event.key==='Enter') saveSettings()">
+    <div class="settings-hint">@ sign optional hai — automatically add hoga</div>
+    <div class="settings-error" id="settingsError"></div>
+    <div class="settings-btns">
+      <button class="settings-save" id="settingsSaveBtn" onclick="saveSettings()">💾 Save</button>
+      <button class="settings-cancel" onclick="closeSettings()">Cancel</button>
+    </div>
+    <div class="settings-saving" id="settingsSaving"></div>
+  </div>
+</div>
+
 <div class="container">
 
   <!-- Header -->
   <div class="header">
+    <button class="gear-btn" onclick="openSettings()" title="Settings">⚙️</button>
     <h1>⚔️ Live Battle ⚔️</h1>
     <div class="streamer-info">
       <span style="color:var(--cyan);font-weight:700;font-size:0.95rem;" id="streamerName">@loading...</span>
@@ -1496,6 +1589,79 @@
     pollFallback();
     setInterval(pollFallback, 2000);
   }
+
+  /* ══════════════════════════════════════════
+     ⚙️  SETTINGS — gear modal
+  ══════════════════════════════════════════ */
+  function openSettings(){
+    // Server se current username fetch karo — always fresh
+    fetch('/api/settings')
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        gel('settingsInput').value = d.username || '';
+      })
+      .catch(function(){
+        gel('settingsInput').value = gel('streamerName').textContent || '';
+      });
+    gel('settingsError').textContent = '';
+    gel('settingsSaving').textContent = '';
+    gel('settingsSaveBtn').disabled = false;
+    gel('settingsInput').classList.remove('err');
+    gel('settingsOverlay').classList.add('open');
+    // Short delay ke baad focus — mobile keyboard ke liye
+    setTimeout(function(){ gel('settingsInput').focus(); }, 100);
+  }
+
+  function closeSettings(){
+    gel('settingsOverlay').classList.remove('open');
+    gel('settingsError').textContent = '';
+    gel('settingsSaving').textContent = '';
+  }
+
+  async function saveSettings(){
+    var raw = gel('settingsInput').value.trim();
+    if(!raw){
+      gel('settingsInput').classList.add('err');
+      gel('settingsError').textContent = '⚠️ Username khaali nahi ho sakta';
+      return;
+    }
+    gel('settingsInput').classList.remove('err');
+    gel('settingsError').textContent = '';
+    gel('settingsSaveBtn').disabled = true;
+    gel('settingsSaving').textContent = '⏳ Saving...';
+
+    try {
+      var r = await fetch('/api/settings', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({username: raw})
+      });
+      var data = await r.json();
+      if(!r.ok){
+        gel('settingsInput').classList.add('err');
+        gel('settingsError').textContent = '⚠️ ' + (data.error || 'Save nahi hua');
+        gel('settingsSaveBtn').disabled = false;
+        gel('settingsSaving').textContent = '';
+        return;
+      }
+      // Success
+      gel('settingsSaving').textContent = '✅ Saved! Reconnecting...';
+      gel('streamerName').textContent = data.username || ('@' + raw.replace(/^@/, ''));
+      setTimeout(function(){
+        closeSettings();
+        showToast('✅ Username updated: ' + data.username);
+      }, 800);
+    } catch(e) {
+      gel('settingsError').textContent = '⚠️ Network error — try again';
+      gel('settingsSaveBtn').disabled = false;
+      gel('settingsSaving').textContent = '';
+    }
+  }
+
+  // ESC key se modal band karo
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape') closeSettings();
+  });
 </script>
 </body>
 </html>
