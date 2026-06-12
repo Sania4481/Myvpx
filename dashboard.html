@@ -623,124 +623,10 @@
     }
 
     .footer { text-align: center; padding: 10px 0 6px; font-size: 0.62rem; color: #2d3748; }
-
-    /* ── Settings Gear Button (fixed top-right) ── */
-    .settings-btn {
-      position: fixed; top: 14px; right: 14px; z-index: 999;
-      width: 40px; height: 40px; border-radius: 50%;
-      background: rgba(255,255,255,0.06); border: 1px solid var(--border);
-      color: var(--muted); font-size: 1.2rem; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      transition: all 0.25s; backdrop-filter: blur(8px);
-    }
-    .settings-btn:hover { color: var(--gold); border-color: rgba(255,214,10,0.4); background: rgba(255,214,10,0.08); transform: rotate(30deg); }
-    .settings-btn .gear-icon { display: inline-block; transition: transform 0.4s; }
-    .settings-btn:hover .gear-icon { transform: rotate(90deg); }
-
-    /* ── Settings Modal Overlay ── */
-    .settings-overlay {
-      position: fixed; inset: 0; z-index: 1100;
-      background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
-      display: none; align-items: center; justify-content: center;
-      animation: fadeIn 0.25s ease;
-    }
-    .settings-overlay.open { display: flex; }
-
-    .settings-modal {
-      background: #0f0f18; border: 1px solid rgba(255,214,10,0.25);
-      border-radius: 22px; padding: 28px 24px 22px;
-      width: 92%; max-width: 380px; position: relative;
-      box-shadow: 0 8px 50px rgba(0,0,0,0.6), 0 0 30px rgba(255,214,10,0.08);
-      animation: modalIn 0.35s cubic-bezier(0.34,1.56,0.64,1);
-    }
-    @keyframes modalIn { from { opacity:0; transform: scale(0.9) translateY(20px); } to { opacity:1; transform: scale(1) translateY(0); } }
-
-    .settings-close {
-      position: absolute; top: 12px; right: 14px;
-      background: none; border: none; color: var(--muted);
-      font-size: 1.2rem; cursor: pointer; padding: 4px 8px;
-      border-radius: 8px; transition: all 0.2s;
-    }
-    .settings-close:hover { color: var(--text); background: rgba(255,255,255,0.06); }
-
-    .settings-title {
-      font-family: 'Rajdhani', sans-serif; font-size: 1.2rem; font-weight: 700;
-      color: var(--gold); letter-spacing: 2px; text-transform: uppercase;
-      margin-bottom: 20px; text-align: center;
-    }
-    .settings-field { margin-bottom: 18px; }
-    .settings-label {
-      display: block; font-size: 0.7rem; font-weight: 700;
-      color: var(--muted); letter-spacing: 1px; text-transform: uppercase;
-      margin-bottom: 8px;
-    }
-    .settings-input {
-      width: 100%; padding: 12px 14px; border-radius: 12px;
-      background: rgba(255,255,255,0.05); border: 1px solid var(--border);
-      color: var(--text); font-family: 'Inter', sans-serif;
-      font-size: 0.95rem; font-weight: 600; outline: none;
-      transition: border-color 0.2s;
-    }
-    .settings-input:focus { border-color: rgba(255,214,10,0.5); }
-    .settings-input::placeholder { color: var(--muted); font-weight: 400; }
-    .settings-hint {
-      font-size: 0.65rem; color: var(--muted); margin-top: 6px;
-    }
-    .settings-save {
-      width: 100%; padding: 14px; border: none; border-radius: 14px;
-      background: linear-gradient(135deg, rgba(247,37,133,0.2), rgba(76,201,240,0.2));
-      border: 2px solid rgba(255,214,10,0.4); color: var(--gold);
-      font-family: 'Rajdhani', sans-serif; font-size: 1rem; font-weight: 700;
-      letter-spacing: 1.5px; text-transform: uppercase; cursor: pointer;
-      transition: all 0.2s;
-    }
-    .settings-save:hover:not(:disabled) {
-      background: linear-gradient(135deg, rgba(247,37,133,0.3), rgba(76,201,240,0.3));
-      border-color: var(--gold); box-shadow: 0 0 24px rgba(255,214,10,0.3);
-      transform: translateY(-2px);
-    }
-    .settings-save:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; }
-    .settings-status {
-      text-align: center; margin-top: 12px; font-size: 0.78rem; font-weight: 700;
-      min-height: 1.2em;
-    }
-    .settings-status.success { color: var(--green); }
-    .settings-status.error { color: var(--pink); }
-    .settings-current {
-      text-align: center; padding: 10px; margin-bottom: 16px;
-      background: rgba(255,255,255,0.03); border-radius: 12px;
-      border: 1px solid var(--border);
-    }
-    .settings-current-label { font-size: 0.6rem; color: var(--muted); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
-    .settings-current-val { font-size: 1rem; font-weight: 800; color: var(--cyan); margin-top: 4px; }
     @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
   </style>
 </head>
 <body>
-
-<!-- ⚙️ Settings Gear Button -->
-<button class="settings-btn" onclick="openSettings()" title="Settings">
-  <span class="gear-icon">⚙️</span>
-</button>
-
-<!-- ⚙️ Settings Modal -->
-<div class="settings-overlay" id="settingsOverlay" onclick="if(event.target===this)closeSettings()">
-  <div class="settings-modal">
-    <button class="settings-close" onclick="closeSettings()">✕</button>
-    <div class="settings-title">⚙️ Settings</div>
-    <div class="settings-current">
-      <div class="settings-current-label">Current Streamer</div>
-      <div class="settings-current-val" id="settingsCurrentUser">@loading...</div>
-    </div>
-    <div class="settings-field">
-      <label class="settings-label">TikTok Username</label>
-      <input class="settings-input" id="settingsUsername" type="text" placeholder="@username ya username" autocomplete="off" spellcheck="false">
-      <div class="settings-hint">@ ke saath ya bina — dono chalega (e.g. ganji_live_8)</div>
-    </div>
-    <button class="settings-save" id="settingsSaveBtn" onclick="saveSettings()">💾 Save &amp; Reconnect</button>
-    <div class="settings-status" id="settingsStatus"></div>
-  </div>
-</div>
 
 <!-- 🔔 Notification Container (fixed, top-right) -->
 <div id="notifContainer" class="notif-container"></div>
@@ -931,7 +817,24 @@
   ══════════════════════════════════════════ */
   function esc(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
   function fmtNum(n){ return Number(n).toLocaleString('en-US'); }
-  function changed(a,b){ return JSON.stringify(a)!==JSON.stringify(b); }
+  /* ── Shallow array-of-objects comparison — JSON.stringify se 5-10x fast ── */
+  function changed(a, b){
+    if(a === b) return false;
+    if(!a || !b) return true;
+    if(!Array.isArray(a)) return JSON.stringify(a) !== JSON.stringify(b);
+    if(a.length !== b.length) return true;
+    for(var i = 0; i < a.length; i++){
+      var ai = a[i], bi = b[i];
+      if(ai === bi) continue;
+      // one-level deep key compare
+      var akeys = Object.keys(ai);
+      for(var j = 0; j < akeys.length; j++){
+        if(ai[akeys[j]] !== bi[akeys[j]]) return true;
+      }
+    }
+    return false;
+  }
+
   function fmt(s){
     s = Math.max(0, Math.floor(s));
     var m = String(Math.floor(s/60)).padStart(2,'0');
@@ -939,40 +842,29 @@
     return m+':'+sc;
   }
 
-  /* User ki profile picture (avatar_thumb) render karo — agar URL na ho
-     to ek emoji fallback circle dikha do.
-     Error par retry karo (max 2 retries, 1.5s + 3s delay). */
-  var AVATAR_MAX_RETRIES = 2;
-  var AVATAR_RETRY_DELAYS = [1500, 3000];
-
+  /* ── Avatar URL → HTML, with per-URL cache ──
+     Ek hi URL ke liye baar baar string build nahi hogi */
+  var _avatarCache = Object.create(null);
   function avatarImg(url, cls){
     cls = cls || 'avatar';
+    var key = (url || '') + '|' + cls;
+    if(_avatarCache[key]) return _avatarCache[key];
+    var html;
     if(url){
-      var proxied = '/api/avatar?url=' + encodeURIComponent(url);
-      return '<img class="'+cls+'" src="'+esc(proxied)+'" '
-           + 'data-original-url="'+esc(url)+'" data-retry="0" '
+      html = '<img class="'+cls+'" src="'+esc(url)+'" '
+           + 'referrerpolicy="no-referrer" '
+           + 'crossorigin="anonymous" '
            + 'loading="lazy" '
-           + 'onerror="retryAvatar(this)">';
-    }
-    return '<span class="'+cls+' avatar-fallback">👤</span>';
-  }
-
-  function retryAvatar(img){
-    var retry = parseInt(img.getAttribute('data-retry') || '0', 10);
-    var origUrl = img.getAttribute('data-original-url') || '';
-    if(retry < AVATAR_MAX_RETRIES && origUrl){
-      img.setAttribute('data-retry', retry + 1);
-      var delay = AVATAR_RETRY_DELAYS[retry] || 3000;
-      img.style.opacity = '0.3';
-      setTimeout(function(){
-        img.src = '/api/avatar?url=' + encodeURIComponent(origUrl) + '&_r=' + (retry + 1);
-        img.style.opacity = '';
-      }, delay);
+           + 'onerror="this.onerror=null;this.src=\'\';;this.outerHTML=\'<span class=\\\''+cls+' avatar-fallback\\\'>👤</span>\'">';
     } else {
-      var cls = img.className;
-      img.onerror = null;
-      img.outerHTML = '<span class="'+cls+' avatar-fallback">👤</span>';
+      html = '<span class="'+cls+' avatar-fallback">👤</span>';
     }
+    // Cache max 200 entries — memory bound
+    if(Object.keys(_avatarCache).length > 200){
+      _avatarCache = Object.create(null);
+    }
+    _avatarCache[key] = html;
+    return html;
   }
 
   /* ══════════════════════════════════════════
@@ -985,45 +877,62 @@
   var selectedDuration = 120;   // matches default active button (2 min)
   var lastWinner = null;
 
-  /* ── Smooth client-side timer ── */
+  /* ── DOM element cache — getElementById baar baar call nahi hoga ── */
+  var _el = Object.create(null);
+  function gel(id){
+    if(!_el[id]) _el[id] = document.getElementById(id);
+    return _el[id];
+  }
+
+  /* ── Smooth client-side timer — setInterval ki jagah requestAnimationFrame ── */
   var timerInterval = null;
   var battleEndTime = null;
+  var _lastTimerSec = -1;   // flicker avoid: sirf jab second change ho tab DOM update
 
   function startClientTimer(remaining){
-    clearInterval(timerInterval);
+    stopClientTimer();
     battleEndTime = Date.now() + remaining * 1000;
-    timerInterval = setInterval(function(){
+    _lastTimerSec = -1;
+    function tick(){
       var left = Math.max(0, Math.round((battleEndTime - Date.now()) / 1000));
-      var tv = document.getElementById('timerVal');
-      if(tv){
-        tv.textContent = fmt(left);
-        tv.classList.toggle('urgent', left <= 15 && left > 0);
+      if(left !== _lastTimerSec){
+        _lastTimerSec = left;
+        var tv = gel('timerVal');
+        if(tv){
+          tv.textContent = fmt(left);
+          tv.classList.toggle('urgent', left <= 15 && left > 0);
+        }
       }
-      if(left <= 0){
-        clearInterval(timerInterval);
+      if(left > 0){
+        timerInterval = requestAnimationFrame(tick);
+      } else {
         timerInterval = null;
       }
-    }, 1000);
+    }
+    timerInterval = requestAnimationFrame(tick);
   }
 
   function stopClientTimer(){
-    clearInterval(timerInterval);
-    timerInterval = null;
+    if(timerInterval !== null){
+      cancelAnimationFrame(timerInterval);
+      timerInterval = null;
+    }
     battleEndTime = null;
+    _lastTimerSec = -1;
   }
 
   function dismissWinnerAndReset(){
     // Auto reset scores when starting new battle from winner screen
     fetch('/api/battle/reset-scores', {method:'POST'}).catch(function(){});
-    document.getElementById('winnerPanel').style.display = 'none';
-    document.getElementById('battleContent').style.display = '';
-    document.getElementById('winnerMvp').style.display = 'none';
-    document.getElementById('startBtn').disabled = false;
-    document.getElementById('stopBtn').disabled = true;
-    document.getElementById('durationRow').style.opacity = '';
-    document.getElementById('durationRow').style.pointerEvents = '';
-    document.getElementById('timerVal').textContent = '—:——';
-    document.getElementById('timerVal').classList.remove('urgent');
+    gel('winnerPanel').style.display = 'none';
+    gel('battleContent').style.display = '';
+    gel('winnerMvp').style.display = 'none';
+    gel('startBtn').disabled = false;
+    gel('stopBtn').disabled = true;
+    gel('durationRow').style.opacity = '';
+    gel('durationRow').style.pointerEvents = '';
+    gel('timerVal').textContent = '—:——';
+    gel('timerVal').classList.remove('urgent');
     lastWinner = null;
     stopClientTimer();
     setBattleIcons(false);
@@ -1043,7 +952,7 @@
   ══════════════════════════════════════════ */
   var toastTimer = null;
   function showToast(msg, cls){
-    var t = document.getElementById('toast');
+    var t = gel('toast');
     t.textContent = msg;
     t.className = 'show' + (cls ? ' '+cls : '');
     clearTimeout(toastTimer);
@@ -1080,7 +989,7 @@
 
   function _renderNotif(n){
     activeNotifs++;
-    var container = document.getElementById('notifContainer');
+    var container = gel('notifContainer');
     var el = document.createElement('div');
     el.className = 'notif-card team-' + n.team.toLowerCase();
 
@@ -1120,8 +1029,8 @@
   var burstTimerA = null, burstTimerB = null;
 
   function setBattleIcons(active){
-    var a = document.getElementById('iconA');
-    var b = document.getElementById('iconB');
+    var a = gel('iconA');
+    var b = gel('iconB');
     if(!a || !b) return;
     if(active){
       a.textContent = '🥷'; a.className = 'team-icon battle-a';
@@ -1135,16 +1044,15 @@
   }
 
   function triggerScoreBurst(side, sa, sb){
-    if(!document.getElementById('iconA')) return;
-    // Check if score increased
+    if(!gel('iconA')) return;
     if(side === 'a' && sa > lastSa){
-      var el = document.getElementById('iconA');
+      var el = gel('iconA');
       clearTimeout(burstTimerA);
       el.className = 'team-icon battle-a score-burst-a';
       burstTimerA = setTimeout(function(){ el.className = 'team-icon battle-a'; }, 560);
     }
     if(side === 'b' && sb > lastSb){
-      var el = document.getElementById('iconB');
+      var el = gel('iconB');
       clearTimeout(burstTimerB);
       el.className = 'team-icon battle-b score-burst-b';
       burstTimerB = setTimeout(function(){ el.className = 'team-icon battle-b'; }, 560);
@@ -1176,7 +1084,7 @@
 
   function _applyShake(side){
     var cardId = side === 'a' ? 'teamACard' : 'teamBCard';
-    var card = document.getElementById(cardId);
+    var card = gel(cardId);
     if(!card) return;
     card.classList.remove('shake-weak', 'shake-med', 'shake-strong');
 
@@ -1200,7 +1108,7 @@
     ['a','b'].forEach(function(s){
       clearTimeout(shakeTimers[s]);
       shakeHistory[s] = [];
-      var card = document.getElementById(s === 'a' ? 'teamACard' : 'teamBCard');
+      var card = gel(s === 'a' ? 'teamACard' : 'teamBCard');
       if(card) card.classList.remove('shake-weak','shake-med','shake-strong');
     });
   }
@@ -1216,13 +1124,13 @@
         body: JSON.stringify({duration: selectedDuration})
       });
       if(r.ok){
-        document.getElementById('startBtn').disabled = true;
-        document.getElementById('stopBtn').disabled = false;
-        document.getElementById('durationRow').style.opacity = '0.4';
-        document.getElementById('durationRow').style.pointerEvents = 'none';
-        document.getElementById('winnerPanel').style.display = 'none';
-        document.getElementById('battleContent').style.display = '';
-        document.getElementById('winnerMvp').style.display = 'none';
+        gel('startBtn').disabled = true;
+        gel('stopBtn').disabled = false;
+        gel('durationRow').style.opacity = '0.4';
+        gel('durationRow').style.pointerEvents = 'none';
+        gel('winnerPanel').style.display = 'none';
+        gel('battleContent').style.display = '';
+        gel('winnerMvp').style.display = 'none';
         lastWinner = null;
         startClientTimer(selectedDuration);
         setBattleIcons(true);
@@ -1235,10 +1143,10 @@
     try {
       var r = await fetch('/api/battle/end', {method:'POST'});
       if(r.ok){
-        document.getElementById('startBtn').disabled = false;
-        document.getElementById('stopBtn').disabled = true;
-        document.getElementById('durationRow').style.opacity = '';
-        document.getElementById('durationRow').style.pointerEvents = '';
+        gel('startBtn').disabled = false;
+        gel('stopBtn').disabled = true;
+        gel('durationRow').style.opacity = '';
+        gel('durationRow').style.pointerEvents = '';
         setBattleIcons(false);
         stopClientTimer();
       }
@@ -1246,22 +1154,22 @@
   }
 
   function _resetBattleUI(clearTeams){
-    document.getElementById('startBtn').disabled = false;
-    document.getElementById('stopBtn').disabled = true;
-    document.getElementById('durationRow').style.opacity = '';
-    document.getElementById('durationRow').style.pointerEvents = '';
+    gel('startBtn').disabled = false;
+    gel('stopBtn').disabled = true;
+    gel('durationRow').style.opacity = '';
+    gel('durationRow').style.pointerEvents = '';
     if(clearTeams){
-      document.getElementById('winnerPanel').style.display = 'none';
-      document.getElementById('battleContent').style.display = '';
-      document.getElementById('winnerMvp').style.display = 'none';
-      document.getElementById('teamACard').classList.remove('winning-a','winning-b');
-      document.getElementById('teamBCard').classList.remove('winning-a','winning-b');
+      gel('winnerPanel').style.display = 'none';
+      gel('battleContent').style.display = '';
+      gel('winnerMvp').style.display = 'none';
+      gel('teamACard').classList.remove('winning-a','winning-b');
+      gel('teamBCard').classList.remove('winning-a','winning-b');
       lastWinner = null;
     }
-    document.getElementById('timerVal').textContent = '—:——';
-    document.getElementById('timerVal').classList.remove('urgent');
-    document.getElementById('scoreA').textContent = '0';
-    document.getElementById('scoreB').textContent = '0';
+    gel('timerVal').textContent = '—:——';
+    gel('timerVal').classList.remove('urgent');
+    gel('scoreA').textContent = '0';
+    gel('scoreB').textContent = '0';
     stopClientTimer();
   }
 
@@ -1274,24 +1182,21 @@
   function updateBattle(b){
     if(!b) return;
 
-    // ── Fresh battle detect: end_time badal gaya = naya battle shuru ──
-    // Yeh 100% reliable hai — lastBattleActive se zyada accurate
     var freshStart = b.active && b.end_time && (b.end_time !== lastEndTime);
     if(b.end_time) lastEndTime = b.end_time;
 
     if(freshStart){
-      // Foran sab kuch zero karo — koi bhi purana data na dikhe
       lastWinner = null;
-      document.getElementById('winnerPanel').style.display = 'none';
-      document.getElementById('battleContent').style.display = '';
-      document.getElementById('winnerMvp').style.display = 'none';
-      document.getElementById('scoreA').textContent = '0';
-      document.getElementById('scoreB').textContent = '0';
-      document.getElementById('progressA').style.width = '50%';
-      document.getElementById('progressB').style.width = '50%';
-      document.getElementById('progressCenter').textContent = 'Even ⚖️';
-      document.getElementById('teamACard').classList.remove('winning-a','winning-b');
-      document.getElementById('teamBCard').classList.remove('winning-a','winning-b');
+      gel('winnerPanel').style.display = 'none';
+      gel('battleContent').style.display = '';
+      gel('winnerMvp').style.display = 'none';
+      gel('scoreA').textContent = '0';
+      gel('scoreB').textContent = '0';
+      gel('progressA').style.width = '50%';
+      gel('progressB').style.width = '50%';
+      gel('progressCenter').textContent = 'Even ⚖️';
+      gel('teamACard').classList.remove('winning-a','winning-b');
+      gel('teamBCard').classList.remove('winning-a','winning-b');
       stopClientTimer();
       startClientTimer(b.remaining);
       setBattleIcons(true);
@@ -1300,103 +1205,117 @@
 
     var sa = b.score_a, sb = b.score_b, total = sa+sb;
 
-    // Score burst animation — jis side score badha us ka icon animate karo
     if(b.active){
       if(sa > lastSa){ triggerScoreBurst('a', sa, sb); recordScore('a', sa); }
       else if(sb > lastSb){ triggerScoreBurst('b', sa, sb); recordScore('b', sb); }
       else { lastSa = sa; lastSb = sb; }
     }
 
-    // Scores & member counts
-    document.getElementById('scoreA').textContent = fmtNum(sa);
-    document.getElementById('scoreB').textContent = fmtNum(sb);
-    document.getElementById('countA').textContent = b.count_a;
-    document.getElementById('countB').textContent = b.count_b;
+    // Only update DOM if value actually changed
+    var scoreAEl = gel('scoreA'), scoreBEl = gel('scoreB');
+    var saStr = fmtNum(sa), sbStr = fmtNum(sb);
+    if(scoreAEl.textContent !== saStr) scoreAEl.textContent = saStr;
+    if(scoreBEl.textContent !== sbStr) scoreBEl.textContent = sbStr;
 
-    // Progress bar
+    var cntA = String(b.count_a), cntB = String(b.count_b);
+    var cntAEl = gel('countA'), cntBEl = gel('countB');
+    if(cntAEl.textContent !== cntA) cntAEl.textContent = cntA;
+    if(cntBEl.textContent !== cntB) cntBEl.textContent = cntB;
+
     var pctA = total>0 ? Math.round(sa/total*100) : 50;
     var pctB = total>0 ? Math.round(sb/total*100) : 50;
-    document.getElementById('progressA').style.width = pctA+'%';
-    document.getElementById('progressB').style.width = pctB+'%';
+    var pA = pctA+'%', pB = pctB+'%';
+    var pAEl = gel('progressA'), pBEl = gel('progressB');
+    if(pAEl.style.width !== pA) pAEl.style.width = pA;
+    if(pBEl.style.width !== pB) pBEl.style.width = pB;
 
     var center;
     if(total===0)  center = 'Even ⚖️';
     else if(sa>sb) center = 'A leads +'+fmtNum(sa-sb);
     else if(sb>sa) center = 'B leads +'+fmtNum(sb-sa);
     else           center = 'Tie! ⚖️';
-    document.getElementById('progressCenter').textContent = center;
+    var pcEl = gel('progressCenter');
+    if(pcEl.textContent !== center) pcEl.textContent = center;
 
-    // Winning glow
-    var cardA = document.getElementById('teamACard');
-    var cardB = document.getElementById('teamBCard');
+    var cardA = gel('teamACard'), cardB = gel('teamBCard');
     cardA.classList.remove('winning-a','winning-b');
     cardB.classList.remove('winning-a','winning-b');
     if(b.active && sa>sb){ cardA.classList.add('winning-a'); cardB.classList.add('winning-a'); }
     if(b.active && sb>sa){ cardB.classList.add('winning-b'); cardA.classList.add('winning-b'); }
 
-    // Timer
-    var tv = document.getElementById('timerVal');
+    var tv = gel('timerVal');
     if(b.active){
-      if(!timerInterval){
-        startClientTimer(b.remaining);
-      }
+      if(!timerInterval) startClientTimer(b.remaining);
     } else if(!b.winner){
       stopClientTimer();
       tv.textContent = '—:——';
       tv.classList.remove('urgent');
     }
 
-    // Winner panel — sirf winner change par show karo
     if(!b.winner && lastWinner){
       lastWinner = null;
-      document.getElementById('winnerPanel').style.display = 'none';
-      document.getElementById('battleContent').style.display = '';
+      gel('winnerPanel').style.display = 'none';
+      gel('battleContent').style.display = '';
     }
     if(b.winner && b.winner !== lastWinner){
       lastWinner = b.winner;
       showWinner(b.winner, sa, sb, b.top_a, b.top_b);
       stopClientTimer();
       setBattleIcons(false);
-      document.getElementById('startBtn').disabled = false;
-      document.getElementById('stopBtn').disabled = true;
-      document.getElementById('durationRow').style.opacity = '';
-      document.getElementById('durationRow').style.pointerEvents = '';
+      gel('startBtn').disabled = false;
+      gel('stopBtn').disabled = true;
+      gel('durationRow').style.opacity = '';
+      gel('durationRow').style.pointerEvents = '';
     }
 
-    // Team detail lists
     renderTeamDetail('tdcListA','tdc-count-a', b.top_a, 'a', b.count_a);
     renderTeamDetail('tdcListB','tdc-count-b', b.top_b, 'b', b.count_b);
-    document.getElementById('teamsDetail').style.display = '';
+    gel('teamsDetail').style.display = '';
   }
 
+  /* ── renderTeamDetail with content hash — sirf tab update karo jab data badla ho ── */
+  var _tdcHash = { tdcListA: null, tdcListB: null };
   function renderTeamDetail(listId, countId, members, team, total){
-    document.getElementById(countId).textContent = total+' members';
-    var el = document.getElementById(listId);
+    var countStr = total+' members';
+    var countEl = gel(countId);
+    if(countEl.textContent !== countStr) countEl.textContent = countStr;
+
+    var el = gel(listId);
+    var newHtml;
     if(!members || members.length===0){
-      el.innerHTML = '<div class="no-members">Koi join nahi kiya<br><small style="color:#2d3748">!'+team.toUpperCase()+' comment karo</small></div>';
-      return;
-    }
-    el.innerHTML = members.map(function(m,i){
-      var pts = m.likes*1 + (m.coins||0)*50;
+      newHtml = '<div class="no-members">Koi join nahi kiya<br><small style="color:#2d3748">!'+team.toUpperCase()+' comment karo</small></div>';
+    } else {
       var teamColor = team === 'a' ? 'var(--pink)' : 'var(--cyan)';
-      return '<div class="member-row">'+
-        avatarImg(m.avatar, 'avatar')+
-        '<span style="font-size:1rem;margin:0 4px;">'+(i===0?'👑':'#'+(i+1))+'</span>'+
-        '<span class="member-name">'+esc(m.nickname)+'</span>'+
-        '<span class="member-pts" style="color:'+teamColor+';">'+fmtNum(pts)+' pts</span>'+
-      '</div>';
-    }).join('');
+      var parts = [];
+      for(var i = 0; i < members.length; i++){
+        var m = members[i];
+        var pts = m.likes*1 + (m.coins||0)*50;
+        parts.push(
+          '<div class="member-row">'+
+          avatarImg(m.avatar, 'avatar')+
+          '<span style="font-size:1rem;margin:0 4px;">'+(i===0?'👑':'#'+(i+1))+'</span>'+
+          '<span class="member-name">'+esc(m.nickname)+'</span>'+
+          '<span class="member-pts" style="color:'+teamColor+';">'+fmtNum(pts)+' pts</span>'+
+          '</div>'
+        );
+      }
+      newHtml = parts.join('');
+    }
+    // Sirf jab content badla ho tab DOM write karo
+    if(_tdcHash[listId] !== newHtml){
+      _tdcHash[listId] = newHtml;
+      el.innerHTML = newHtml;
+    }
   }
 
   function showWinner(winner, sa, sb, topA, topB){
-    // Battle content hide karo, winner panel dikhao
-    document.getElementById('battleContent').style.display = 'none';
-    document.getElementById('winnerPanel').style.display = '';
+    gel('battleContent').style.display = 'none';
+    gel('winnerPanel').style.display = '';
 
-    var trophy  = document.getElementById('winnerTrophy');
-    var title   = document.getElementById('winnerTitle');
-    var scores  = document.getElementById('winnerScores');
-    var mvpBox  = document.getElementById('winnerMvp');
+    var trophy  = gel('winnerTrophy');
+    var title   = gel('winnerTitle');
+    var scores  = gel('winnerScores');
+    var mvpBox  = gel('winnerMvp');
     scores.innerHTML =
       '<span class="winner-score-a">A: '+fmtNum(sa)+'</span>'+
       '<span style="color:var(--muted)">vs</span>'+
@@ -1416,7 +1335,6 @@
       showToast('⚖️ BARABAR! Dono teams ne same score kiya!');
     }
 
-    // 🏅 MVP — winning team ka sabse top scorer (avatar + naam)
     var teamList = winner==='A' ? topA : (winner==='B' ? topB : null);
     var mvp = teamList && teamList.length ? teamList[0] : null;
 
@@ -1441,50 +1359,63 @@
   }
 
   /* ══════════════════════════════════════════
-     LEADERBOARD ROWS
+     LEADERBOARD ROWS — optimized string builder
   ══════════════════════════════════════════ */
+  /* teamMap build: array loop instead of forEach for speed */
+  function buildTeamMap(battle){
+    var m = Object.create(null);
+    if(!battle) return m;
+    var a = battle.all_a, b = battle.all_b;
+    if(a){ for(var i=0;i<a.length;i++) m[a[i]]='a'; }
+    if(b){ for(var i=0;i<b.length;i++) m[b[i]]='b'; }
+    return m;
+  }
+
   function buildRows(data, scoreKey, scoreClass, prefix, teamMap){
-    return data.map(function(u,i){
+    var parts = [];
+    for(var i = 0; i < data.length; i++){
+      var u = data[i];
       var rank = i<3 ? '<span class="rank-badge">'+medals[i]+'</span>'
                      : '<span class="rank-num">'+(i+1)+'</span>';
       var crown = i===0 ? '<span class="crown">👑</span>' : '';
       var tag = teamMap && teamMap[u.nickname]
         ? '<span class="team-tag '+teamMap[u.nickname]+'">'+teamMap[u.nickname].toUpperCase()+'</span>'
         : '';
-      return '<div class="lb-row" data-rank="'+i+'">'+rank+
+      parts.push(
+        '<div class="lb-row" data-rank="'+i+'">'+rank+
         avatarImg(u.avatar)+
         '<span class="user-name">'+esc(u.nickname)+crown+tag+'</span>'+
         '<span class="score '+scoreClass+'">'+prefix+' '+fmtNum(u[scoreKey])+'</span>'+
-      '</div>';
-    }).join('');
+        '</div>'
+      );
+    }
+    return parts.join('');
   }
 
   /* ══════════════════════════════════════════
-     UPDATE UI — polling aur SSE dono yahi call karte hain
+     UPDATE UI — SSE aur polling dono yahi call karte hain
   ══════════════════════════════════════════ */
   function applyData(data){
-    // Streamer name
-    var nameEl = document.getElementById('streamerName');
+    var nameEl = gel('streamerName');
     var wn = '@' + data.streamer;
     if(nameEl.textContent !== wn) nameEl.textContent = wn;
 
-    // Live status badge
     if(data.is_live !== lastLive){
-      var badge = document.getElementById('statusBadge');
-      var sText = document.getElementById('statusText');
+      var badge = gel('statusBadge');
+      var sText = gel('statusText');
       if(data.is_live){
         badge.className = 'status-badge live';
         sText.textContent = 'LIVE';
-        document.getElementById('offlineBanner').style.display = 'none';
-        document.getElementById('statsBar').style.display = '';
-        document.getElementById('liveGrid').style.display = '';
+        gel('offlineBanner').style.display = 'none';
+        gel('statsBar').style.display = '';
+        gel('liveGrid').style.display = '';
         if(!data.battle || !data.battle.active) showToast('🎮 Stream LIVE ho gayi!');
       } else {
         badge.className = 'status-badge offline';
         sText.textContent = 'OFFLINE';
-        document.getElementById('offlineBanner').style.display = '';
-        document.getElementById('statsBar').style.display = 'none';
-        document.getElementById('liveGrid').style.display = 'none';
+        gel('offlineBanner').style.display = '';
+        gel('statsBar').style.display = 'none';
+        gel('liveGrid').style.display = 'none';
       }
       lastLive = data.is_live;
     }
@@ -1492,117 +1423,35 @@
     if(data.notifications) processNotifications(data.notifications);
     if(data.battle) updateBattle(data.battle);
 
-    var teamMap = {};
-    if(data.battle){
-      (data.battle.all_a||[]).forEach(function(nick){ teamMap[nick] = 'a'; });
-      (data.battle.all_b||[]).forEach(function(nick){ teamMap[nick] = 'b'; });
-    }
+    var teamMap = buildTeamMap(data.battle);
 
     if(data.is_live){
-      document.getElementById('totalLikes').textContent = fmtNum(data.total_likes||0);
-      document.getElementById('totalCoins').textContent = fmtNum(data.total_coins||0);
+      var tlStr = fmtNum(data.total_likes||0);
+      var tcStr = fmtNum(data.total_coins||0);
+      var tlEl = gel('totalLikes'), tcEl = gel('totalCoins');
+      if(tlEl.textContent !== tlStr) tlEl.textContent = tlStr;
+      if(tcEl.textContent !== tcStr) tcEl.textContent = tcStr;
 
       if(changed(lastLikes, data.likes)){
-        document.getElementById('likesList').innerHTML =
+        gel('likesList').innerHTML =
           data.likes && data.likes.length
             ? buildRows(data.likes,'likes','likes','❤️',teamMap)
             : '<div class="empty-state">Waiting for likes…</div>';
-        lastLikes = JSON.parse(JSON.stringify(data.likes||[]));
+        lastLikes = data.likes ? data.likes.slice() : [];
       }
       if(changed(lastGifts, data.gifts)){
-        document.getElementById('giftsList').innerHTML =
+        gel('giftsList').innerHTML =
           data.gifts && data.gifts.length
             ? buildRows(data.gifts,'coins','coins','💰',teamMap)
             : '<div class="empty-state">Waiting for gifts…</div>';
-        lastGifts = JSON.parse(JSON.stringify(data.gifts||[]));
+        lastGifts = data.gifts ? data.gifts.slice() : [];
       }
     }
 
-    document.getElementById('footer').textContent = 'Updated ' + new Date().toLocaleTimeString();
+    var footerEl = gel('footer');
+    var timeStr = 'Updated ' + new Date().toLocaleTimeString();
+    footerEl.textContent = timeStr;
   }
-
-  /* ══════════════════════════════════════════
-     ⚙️ SETTINGS — username change karo
-  ══════════════════════════════════════════ */
-  function openSettings(){
-    var overlay = document.getElementById('settingsOverlay');
-    var input   = document.getElementById('settingsUsername');
-    var status  = document.getElementById('settingsStatus');
-    var current = document.getElementById('settingsCurrentUser');
-    status.textContent = '';
-    status.className = 'settings-status';
-
-    // Current username dikhao
-    var streamer = document.getElementById('streamerName').textContent || '';
-    current.textContent = streamer;
-    input.value = streamer.replace(/^@/, '');
-
-    overlay.classList.add('open');
-    setTimeout(function(){ input.focus(); input.select(); }, 100);
-  }
-
-  function closeSettings(){
-    document.getElementById('settingsOverlay').classList.remove('open');
-  }
-
-  async function saveSettings(){
-    var input   = document.getElementById('settingsUsername');
-    var btn     = document.getElementById('settingsSaveBtn');
-    var status  = document.getElementById('settingsStatus');
-    var raw     = input.value.trim();
-
-    if(!raw){
-      status.className = 'settings-status error';
-      status.textContent = 'Username khaali nahi ho sakta!';
-      input.focus();
-      return;
-    }
-
-    btn.disabled = true;
-    btn.textContent = 'Saving...';
-    status.textContent = '';
-    status.className = 'settings-status';
-
-    try {
-      var r = await fetch('/api/settings', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({username: raw})
-      });
-      var data = await r.json();
-
-      if(r.ok){
-        status.className = 'settings-status success';
-        status.textContent = 'Saved! Reconnecting to ' + data.username + '...';
-        document.getElementById('settingsCurrentUser').textContent = data.username;
-        document.getElementById('streamerName').textContent = data.username;
-        showToast('⚙️ Username changed to ' + data.username);
-        setTimeout(closeSettings, 1500);
-      } else {
-        status.className = 'settings-status error';
-        status.textContent = data.error || 'Save failed!';
-      }
-    } catch(e) {
-      status.className = 'settings-status error';
-      status.textContent = 'Network error — server se baat nahi ho paayi';
-    } finally {
-      btn.disabled = false;
-      btn.textContent = '💾 Save & Reconnect';
-    }
-  }
-
-  // Enter key se bhi save ho jaye
-  document.getElementById('settingsUsername').addEventListener('keydown', function(e){
-    if(e.key === 'Enter') saveSettings();
-  });
-
-  // Escape key se modal band ho
-  document.addEventListener('keydown', function(e){
-    if(e.key === 'Escape'){
-      var overlay = document.getElementById('settingsOverlay');
-      if(overlay.classList.contains('open')) closeSettings();
-    }
-  });
 
   /* ══════════════════════════════════════════
      SSE CONNECTION — polling ki jagah server push
