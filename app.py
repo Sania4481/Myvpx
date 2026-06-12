@@ -5,7 +5,8 @@ import queue
 import threading
 import time
 import uuid
-import urllib.request
+import urllib.parse
+import requests as req_lib
 
 from flask import Flask, Response, jsonify, request, send_file
 
@@ -478,17 +479,22 @@ def proxy_avatar():
     if not url or not any(d in url for d in allowed):
         return "", 400
     try:
-        req = urllib.request.Request(url, headers={
-            "User-Agent": "Mozilla/5.0",
-            "Referer": "https://www.tiktok.com/"
-        })
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            data = resp.read()
-            ct = resp.headers.get("Content-Type", "image/jpeg")
-        return Response(data, content_type=ct, headers={
-            "Cache-Control": "public, max-age=3600"
-        })
-    except Exception:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Referer": "https://www.tiktok.com/",
+            "Accept": "image/webp,image/apng,image/*,*/*;q=0.8",
+        }
+        r = req_lib.get(url, headers=headers, timeout=8, stream=True)
+        if r.status_code != 200:
+            return "", 404
+        ct = r.headers.get("Content-Type", "image/jpeg")
+        return Response(
+            r.content,
+            content_type=ct,
+            headers={"Cache-Control": "public, max-age=3600"}
+        )
+    except Exception as e:
+        print(f"[Avatar Proxy] Error: {e}")
         return "", 404
 
 
