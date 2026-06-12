@@ -20,6 +20,12 @@ except ImportError:
 
 app = Flask(__name__)
 
+# ── ujson for 3-5x faster JSON serialization (optional, graceful fallback) ──
+try:
+    import ujson as _json_lib
+except ImportError:
+    import json as _json_lib
+
 # ══════════════════════════════════════════
 # SETTINGS PERSISTENCE
 # ══════════════════════════════════════════
@@ -107,15 +113,36 @@ _sse_clients: list = []
 _sse_lock = threading.Lock()
 
 # ── Username change signalling ──
-# Jab bhi username change ho, ye Event set hoti hai.
-# run_tiktok_client() loop isko check kar ke turant reconnect karta hai.
-# Har iteration ke shuru mein clear() hoti hai — koi race condition nahi.
 _username_change_event = threading.Event()
+
+# ── SSE payload cache — serialize sirf jab state badla ho ──
+_cached_payload: str = ""
+_payload_dirty: bool = True
+
+
+def _build_payload() -> str:
+    """State ko SSE payload string mein convert karo. Cache karo — baar baar serialize nahi."""
+    global _cached_payload, _payload_dirty
+    if _payload_dirty:
+        try:
+            _cached_payload = "data: " + _json_lib.dumps(state) + "\n\n"
+        except Exception:
+            _cached_payload = "data: " + json.dumps(state, default=str) + "\n\n"
+        _payload_dirty = False
+    return _cached_payload
+
+
+def _mark_dirty():
+    """Koi bhi state change hone par is call karo — next push mein re-serialize hoga."""
+    global _payload_dirty
+    _payload_dirty = True
 
 
 def push_state():
-    payload = "data: " + json.dumps(state, default=str) + "\n\n"
+    payload = _build_payload()
     with _sse_lock:
+        if not _sse_clients:
+            return
         dead = []
         for q in _sse_clients:
             try:
@@ -134,7 +161,7 @@ def background_worker():
     last_push = 0.0
 
     while True:
-        time.sleep(0.25)
+        time.sleep(0.1)   # 250ms → 100ms: faster reaction to events
         changed = False
 
         if _likes_dirty:
@@ -144,6 +171,7 @@ def background_worker():
                 key=lambda x: x["likes"], reverse=True
             )[:10]
             _likes_dirty = False
+            _mark_dirty()
             changed = True
 
         if _gifts_dirty:
@@ -153,6 +181,7 @@ def background_worker():
                 key=lambda x: x["coins"], reverse=True
             )[:10]
             _gifts_dirty = False
+            _mark_dirty()
             changed = True
 
         if state["battle"]["active"]:
@@ -165,17 +194,21 @@ def background_worker():
                 sa = state["battle"]["score_a"]
                 sb = state["battle"]["score_b"]
                 state["battle"]["winner"] = "A" if sa > sb else ("B" if sb > sa else "DRAW")
+                _mark_dirty()
                 changed = True
             elif remaining != state["battle"]["remaining"]:
                 state["battle"]["remaining"] = remaining
+                _mark_dirty()
                 changed = True
 
         if _battle_dirty:
             _update_top_lists()
             _battle_dirty = False
+            _mark_dirty()
             changed = True
 
         now = time.time()
+        # Push: change hone par turant, warna har 2s mein heartbeat
         if changed or (now - last_push) >= 2.0:
             push_state()
             last_push = now
@@ -322,6 +355,7 @@ async def on_comment(event: CommentEvent):
             })
             if len(state["team_comments"]) > 30:
                 state["team_comments"].pop(0)
+            _mark_dirty()
             push_state()
 
 
@@ -338,6 +372,12 @@ async def on_like(event: LikeEvent):
 
     state["total_likes"] += like_count
     global_likes_tracker[nick] = global_likes_tracker.get(nick, 0) + like_count
+    # Cap tracker size — memory unbounded growth rokne ke liye
+    if len(global_likes_tracker) > 5000:
+        # Sabse kam likes wale entries hatao (bottom 1000)
+        trimmed = sorted(global_likes_tracker.items(), key=lambda x: x[1], reverse=True)[:4000]
+        global_likes_tracker.clear()
+        global_likes_tracker.update(trimmed)
     _likes_dirty = True
 
     if state["battle"]["active"]:
@@ -371,6 +411,10 @@ async def on_gift(event: GiftEvent):
     if coins > 0:
         state["total_coins"] += coins
         global_gifts_tracker[nick] = global_gifts_tracker.get(nick, 0) + coins
+        if len(global_gifts_tracker) > 5000:
+            trimmed = sorted(global_gifts_tracker.items(), key=lambda x: x[1], reverse=True)[:4000]
+            global_gifts_tracker.clear()
+            global_gifts_tracker.update(trimmed)
         _gifts_dirty = True
 
         if state["battle"]["active"]:
@@ -382,17 +426,20 @@ async def on_gift(event: GiftEvent):
                 state["battle"]["players"][nick]["coins"] += coins
                 _battle_dirty = True
 
+        _mark_dirty()
         push_state()
 
 
 async def on_connect(event: ConnectEvent):
     state["is_live"] = True
+    _mark_dirty()
     push_state()
     print(f"[TikTokLive] ✅ Connected to {TIKTOK_USERNAME} live stream!")
 
 
 async def on_disconnect(event: DisconnectEvent):
     state["is_live"] = False
+    _mark_dirty()
     push_state()
     print(f"[TikTokLive] ❌ Disconnected from {TIKTOK_USERNAME}.")
 
@@ -547,14 +594,18 @@ def index():
 @app.route("/api/stream")
 def stream():
     def event_gen():
-        q = queue.Queue(maxsize=20)
+        q = queue.Queue(maxsize=50)   # 20 → 50: burst traffic handle karo
         with _sse_lock:
             _sse_clients.append(q)
         try:
-            yield "data: " + json.dumps(state, default=str) + "\n\n"
+            # Initial full state turant bhejo — client ko wait nahi karna parega
+            try:
+                yield "data: " + _json_lib.dumps(state) + "\n\n"
+            except Exception:
+                yield "data: " + json.dumps(state, default=str) + "\n\n"
             while True:
                 try:
-                    msg = q.get(timeout=30)
+                    msg = q.get(timeout=25)
                     yield msg
                 except queue.Empty:
                     yield ": heartbeat\n\n"
@@ -567,9 +618,9 @@ def stream():
         event_gen(),
         mimetype="text/event-stream",
         headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",
-            "Connection": "keep-alive",
+            "Cache-Control":    "no-cache",
+            "X-Accel-Buffering":"no",
+            "Connection":       "keep-alive",
         }
     )
 
@@ -603,9 +654,8 @@ def save_settings():
 
     if old_username != new_username:
         state["is_live"] = False
+        _mark_dirty()
         push_state()
-        # _username_change_event.set() → watcher thread unblock → stop_signal resolve
-        # → client.disconnect() → connect() return → loop restart with new username
         _username_change_event.set()
         print(f"[Settings] Username: {old_username} → {new_username}")
 
