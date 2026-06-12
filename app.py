@@ -21,7 +21,7 @@ except ImportError:
 
 app = Flask(__name__)
 
-TIKTOK_USERNAME = "@ganji_live_8"
+TIKTOK_USERNAME = "@nongthituyet00"
 
 # ══════════════════════════════════════════
 # GLOBAL STATE
@@ -156,6 +156,7 @@ def extract_avatar_url(user) -> str:
             url_list = getattr(img, "url_list", None)
             if not url_list:
                 continue
+            print(f"[Avatar] {attr} url_list: {url_list}")
             # Prefer muscdn / non-sign URLs — ye publicly accessible hote hain
             for u in url_list:
                 if u and ("muscdn.com" in u or "tiktokcdn-us.com" in u):
@@ -164,8 +165,8 @@ def extract_avatar_url(user) -> str:
             for u in url_list:
                 if u:
                     return u
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[Avatar] Error reading {attr}: {e}")
     return ""
 
 
@@ -474,6 +475,15 @@ def stream():
 @app.route("/api/data")
 def get_data():
     return jsonify(state)
+
+
+@app.route("/api/debug/avatars")
+def debug_avatars():
+    """Debug: stored avatar URLs dekho"""
+    return jsonify({
+        "total": len(user_avatars),
+        "avatars": dict(list(user_avatars.items())[:10])
+    })
 
 
 @app.route("/api/avatar")
