@@ -5,7 +5,6 @@ import queue
 import threading
 import time
 import uuid
-import urllib.parse
 import requests as req_lib
 
 from flask import Flask, Response, jsonify, request, send_file
@@ -22,9 +21,9 @@ except ImportError:
 app = Flask(__name__)
 
 # ══════════════════════════════════════════
-# SETTINGS PERSISTENCE (JSON file)
+# SETTINGS PERSISTENCE
 # ══════════════════════════════════════════
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR      = os.path.dirname(os.path.abspath(__file__))
 SETTINGS_FILE = os.path.join(BASE_DIR, "settings.json")
 DEFAULT_USERNAME = "@ganji_live_8"
 
@@ -32,7 +31,6 @@ _settings_lock = threading.Lock()
 
 
 def _load_settings() -> dict:
-    """settings.json se settings load karo, nahi mila to defaults."""
     try:
         with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -44,7 +42,6 @@ def _load_settings() -> dict:
 
 
 def _save_settings(data: dict):
-    """settings.json mein save karo."""
     with _settings_lock:
         try:
             with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
@@ -54,16 +51,15 @@ def _save_settings(data: dict):
 
 
 def _normalize_username(raw: str) -> str:
-    """@ prefix ensure karo, whitespace hatao."""
     raw = raw.strip().lstrip("@").strip()
     if not raw:
         return ""
     return "@" + raw
 
 
-# Load saved username on startup
-_current_settings = _load_settings()
-TIKTOK_USERNAME = _current_settings["username"]
+# Startup mein saved username load karo
+_current_settings  = _load_settings()
+TIKTOK_USERNAME    = _current_settings["username"]
 
 # ══════════════════════════════════════════
 # GLOBAL STATE
@@ -95,23 +91,26 @@ state = {
     }
 }
 
-# internal_set_a/b — team membership (battle ke bahar bhi rehta hai)
-internal_set_a: set = set()
-internal_set_b: set = set()
-# join order tracking — pehle join wala pehle (insertion order preserved in list)
-join_order_a: list = []
-join_order_b: list = []
+internal_set_a:       set  = set()
+internal_set_b:       set  = set()
+join_order_a:         list = []
+join_order_b:         list = []
 global_likes_tracker: dict = {}
 global_gifts_tracker: dict = {}
-# nickname -> avatar URL (har user ka latest profile picture URL)
-user_avatars: dict = {}
+user_avatars:         dict = {}
 
-_likes_dirty = False
-_gifts_dirty = False
+_likes_dirty  = False
+_gifts_dirty  = False
 _battle_dirty = False
 
 _sse_clients: list = []
 _sse_lock = threading.Lock()
+
+# ── Username change signalling ──
+# Jab bhi username change ho, ye Event set hoti hai.
+# run_tiktok_client() loop isko check kar ke turant reconnect karta hai.
+# Har iteration ke shuru mein clear() hoti hai — koi race condition nahi.
+_username_change_event = threading.Event()
 
 
 def push_state():
@@ -140,7 +139,8 @@ def background_worker():
 
         if _likes_dirty:
             state["likes"] = sorted(
-                [{"nickname": k, "likes": v, "avatar": user_avatars.get(k, "")} for k, v in global_likes_tracker.items()],
+                [{"nickname": k, "likes": v, "avatar": user_avatars.get(k, "")}
+                 for k, v in global_likes_tracker.items()],
                 key=lambda x: x["likes"], reverse=True
             )[:10]
             _likes_dirty = False
@@ -148,19 +148,19 @@ def background_worker():
 
         if _gifts_dirty:
             state["gifts"] = sorted(
-                [{"nickname": k, "coins": v, "avatar": user_avatars.get(k, "")} for k, v in global_gifts_tracker.items()],
+                [{"nickname": k, "coins": v, "avatar": user_avatars.get(k, "")}
+                 for k, v in global_gifts_tracker.items()],
                 key=lambda x: x["coins"], reverse=True
             )[:10]
             _gifts_dirty = False
             changed = True
 
-        # Battle timer
         if state["battle"]["active"]:
-            end_time = state["battle"]["end_time"]
-            now = time.time()
+            end_time  = state["battle"]["end_time"]
+            now       = time.time()
             remaining = int(end_time - now)
             if end_time > 0 and remaining <= 0:
-                state["battle"]["active"] = False
+                state["battle"]["active"]    = False
                 state["battle"]["remaining"] = 0
                 sa = state["battle"]["score_a"]
                 sb = state["battle"]["score_b"]
@@ -188,31 +188,25 @@ threading.Thread(target=background_worker, daemon=True).start()
 # HELPERS
 # ══════════════════════════════════════════
 def extract_avatar_url(user) -> str:
-    """
-    avatar_thumb / avatar_medium / avatar_large se URL nikaalo.
-    TikTokLive v7 mein url_list hai, v6.x mein m_urls hai — dono handle karo.
-    """
     for attr in ("avatar_thumb", "avatar_medium", "avatar_large", "avatar_jpg"):
         try:
             img = getattr(user, attr, None)
             if not img:
                 continue
-            # v6.x (render/PyPI stable) uses m_urls, v7 (beta) uses url_list
+            # TikTokLive v6.x → m_urls,  v7.x → url_list
             url_list = (
                 getattr(img, "m_urls", None)
                 or getattr(img, "url_list", None)
                 or getattr(img, "urls", None)
             )
-            # Some versions may store avatar as a direct string URL
+            # Kuch versions mein direct string URL hoti hai
             if not url_list and isinstance(img, str) and img.startswith("http"):
                 return img
             if not url_list:
                 continue
-            # Prefer muscdn / non-sign URLs — ye publicly accessible hote hain
             for u in url_list:
                 if u and ("muscdn.com" in u or "tiktokcdn-us.com" in u):
                     return u
-            # Fallback: pehla available URL
             for u in url_list:
                 if u:
                     return u
@@ -222,7 +216,6 @@ def extract_avatar_url(user) -> str:
 
 
 def remember_avatar(nickname: str, user) -> str:
-    """User ka avatar URL nikal kar cache (user_avatars) mein store karo aur return karo."""
     url = extract_avatar_url(user)
     if url:
         user_avatars[nickname] = url
@@ -238,38 +231,36 @@ def get_user_team(nickname: str):
 
 
 def _update_top_lists():
-    players = state["battle"]["players"]
+    players      = state["battle"]["players"]
     battle_active = state["battle"]["active"]
     team_a, team_b = [], []
     for nick, data in players.items():
-        team = get_user_team(nick)
-        entry = {"nickname": nick, "likes": data["likes"], "coins": data["coins"], "avatar": user_avatars.get(nick, "")}
+        team  = get_user_team(nick)
+        entry = {"nickname": nick, "likes": data["likes"],
+                 "coins": data["coins"], "avatar": user_avatars.get(nick, "")}
         if team == "A":
             team_a.append(entry)
         elif team == "B":
             team_b.append(entry)
 
     if battle_active:
-        # Battle chal raha hai — top scorer upar
         key_fn = lambda x: x["likes"] + x["coins"] * 50
         state["battle"]["top_a"] = sorted(team_a, key=key_fn, reverse=True)[:5]
         state["battle"]["top_b"] = sorted(team_b, key=key_fn, reverse=True)[:5]
     else:
-        # Battle inactive — join order se sort (pehle join = upar)
         def join_order_key_a(x):
-            try: return join_order_a.index(x["nickname"])
+            try:   return join_order_a.index(x["nickname"])
             except ValueError: return 9999
         def join_order_key_b(x):
-            try: return join_order_b.index(x["nickname"])
+            try:   return join_order_b.index(x["nickname"])
             except ValueError: return 9999
         state["battle"]["top_a"] = sorted(team_a, key=join_order_key_a)[:5]
         state["battle"]["top_b"] = sorted(team_b, key=join_order_key_b)[:5]
 
 
 def _sync_team_counts():
-    """internal sets se state mein counts/lists sync karo"""
-    state["battle"]["all_a"] = list(internal_set_a)
-    state["battle"]["all_b"] = list(internal_set_b)
+    state["battle"]["all_a"]   = list(internal_set_a)
+    state["battle"]["all_b"]   = list(internal_set_b)
     state["battle"]["count_a"] = len(internal_set_a)
     state["battle"]["count_b"] = len(internal_set_b)
 
@@ -279,9 +270,9 @@ def _sync_team_counts():
 # ══════════════════════════════════════════
 async def on_comment(event: CommentEvent):
     global _battle_dirty
-    nick = event.user.nickname
+    nick   = event.user.nickname
     avatar = remember_avatar(nick, event.user)
-    text = event.comment.strip()
+    text   = event.comment.strip()
     text_lower = text.lower()
 
     team_assigned = None
@@ -291,32 +282,21 @@ async def on_comment(event: CommentEvent):
         team_assigned = "B"
 
     if team_assigned:
-        current_team = get_user_team(nick)
+        current_team  = get_user_team(nick)
         battle_active = state["battle"]["active"]
 
-        # ── TEAM CHANGE RULES ──
-        # 1. Pehli baar join: hamesha allow
-        # 2. Team change: sirf battle inactive ho tab allow
-        # 3. Battle active ho: team lock — change block
         should_assign = False
         if not current_team:
-            # Pehli baar join
             should_assign = True
         elif current_team != team_assigned and not battle_active:
-            # Team change — battle band ho tab hi allow
             should_assign = True
-        # else: battle active ya same team — ignore
 
         if should_assign:
-            # Purani team se remove karo (agar hai)
             internal_set_a.discard(nick)
             internal_set_b.discard(nick)
-            # Purani join order se bhi remove karo
             if nick in join_order_a: join_order_a.remove(nick)
             if nick in join_order_b: join_order_b.remove(nick)
-            # Nayi team mein add karo
             (internal_set_a if team_assigned == "A" else internal_set_b).add(nick)
-            # Join order mein add karo (end mein — latest joiner)
             (join_order_a if team_assigned == "A" else join_order_b).append(nick)
             _sync_team_counts()
 
@@ -329,11 +309,9 @@ async def on_comment(event: CommentEvent):
             if len(state["notifications"]) > 200:
                 state["notifications"] = state["notifications"][-100:]
 
-            # Players dict mein entry ensure karo (scores touch mat karo)
             state["battle"]["players"].setdefault(nick, {"likes": 0, "coins": 0})
             _battle_dirty = True
 
-        # Comment feed mein daalo (team info ke saath)
         effective_team = team_assigned if should_assign else current_team
         if effective_team:
             state["team_comments"].append({
@@ -388,7 +366,7 @@ async def on_gift(event: GiftEvent):
         or 1
     )
     repeat = int(getattr(event, "repeat_count", 1) or 1)
-    coins = diamond_count * repeat
+    coins  = diamond_count * repeat
 
     if coins > 0:
         state["total_coins"] += coins
@@ -408,7 +386,6 @@ async def on_gift(event: GiftEvent):
 
 
 async def on_connect(event: ConnectEvent):
-    """Sirf tab is_live=True karo jab TikTok confirm kare ke connected hai"""
     state["is_live"] = True
     push_state()
     print(f"[TikTokLive] ✅ Connected to {TIKTOK_USERNAME} live stream!")
@@ -420,117 +397,136 @@ async def on_disconnect(event: DisconnectEvent):
     print(f"[TikTokLive] ❌ Disconnected from {TIKTOK_USERNAME}.")
 
 
-_tiktok_reconnect = threading.Event()
-_current_client = None
-_client_lock = threading.Lock()
-
-
-def _disconnect_current_client():
-    """Agar koi active TikTok client hai to usko force disconnect karo."""
-    with _client_lock:
-        c = _current_client
-    if c is None:
-        return
-    try:
-        # TikTokLive client ka disconnect — connection tod deta hai
-        # connect() unblock ho jayega aur loop restart karega
-        import asyncio as _aio
-        loop = getattr(c, '_ws', None) and getattr(c, '_event_loop', None)
-        if hasattr(c, 'disconnect'):
-            # Try async disconnect from sync context
-            try:
-                fut = asyncio.run_coroutine_threadsafe(c.disconnect(), c._event_loop)
-                fut.result(timeout=3)
-            except Exception:
-                pass
-        if hasattr(c, 'close'):
-            try:
-                c.close()
-            except Exception:
-                pass
-    except Exception as e:
-        print(f"[TikTokLive] Force disconnect error (safe to ignore): {e}")
-
-
-def create_client() -> TikTokLiveClient:
-    c = TikTokLiveClient(unique_id=TIKTOK_USERNAME)
-    c.add_listener(ConnectEvent, on_connect)
-    c.add_listener(CommentEvent, on_comment)
-    c.add_listener(LikeEvent, on_like)
-    c.add_listener(GiftEvent, on_gift)
-    c.add_listener(DisconnectEvent, on_disconnect)
-    return c
-
-
+# ══════════════════════════════════════════
+# TIKTOK CLIENT LOOP
+# ══════════════════════════════════════════
 def run_tiktok_client():
     """
-    Smart polling loop:
-    - Agar user live nahi → 30s wait kar ke dobara check karo (CPU waste nahi)
-    - Agar user live ho gaya → connect karo aur events sun-o
-    - Agar live khatam ho → disconnect, wapas polling mode
-    - Agar username change ho → turant reconnect karo
+    Smart polling loop with clean username-change support:
+
+    1. Har iteration ki shuru mein _username_change_event.clear() karo
+       → pehli baar ya dobara set() hone se koi issue nahi
+    2. current_username snapshot lo — is iteration ke liye ye fixed hai
+    3. connect() block karta hai jab tak stream chal raha ho
+    4. Username change hone par:
+       a. /api/settings endpoint TIKTOK_USERNAME update karta hai
+       b. _username_change_event.set() karta hai
+       c. Asyncio loop mein stop_signal Future resolve ho jaata hai
+       d. connect() return ho jaata hai, loop restart hota hai — koi crash nahi
     """
-    global TIKTOK_USERNAME, _current_client
-    POLL_INTERVAL   = 30   # seconds — live nahi to kitni der baad check karo
-    RECONNECT_DELAY = 10   # seconds — live tha, disconnect hua, reconnect delay
+    global TIKTOK_USERNAME
+
+    POLL_INTERVAL   = 30   # seconds — offline ho to kitni der baad check karo
+    RECONNECT_DELAY = 5    # seconds — unexpected error ke baad delay
 
     while True:
-        # Check if username changed (reconnect signal)
-        _tiktok_reconnect.clear()
-        current_username = TIKTOK_USERNAME
+        # ── Har iteration mein fresh clear ──
+        _username_change_event.clear()
+        current_username = TIKTOK_USERNAME   # snapshot
 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
+
+        # stop_signal Future — username change hone par resolve hota hai
+        stop_signal = loop.create_future()
+
+        def _signal_stop():
+            """Thread-safe: main thread se asyncio loop mein Future resolve karo."""
+            if not stop_signal.done():
+                loop.call_soon_threadsafe(stop_signal.set_result, True)
+
+        # Username change watcher — alag thread se signal bhejta hai
+        def _username_watcher():
+            _username_change_event.wait()   # block — jab tak change na ho
+            _signal_stop()
+
+        watcher_thread = threading.Thread(target=_username_watcher, daemon=True)
+        watcher_thread.start()
+
         try:
-            c = create_client()
-            with _client_lock:
-                _current_client = c
+            client = TikTokLiveClient(unique_id=current_username)
+            client.add_listener(ConnectEvent,    on_connect)
+            client.add_listener(CommentEvent,    on_comment)
+            client.add_listener(LikeEvent,       on_like)
+            client.add_listener(GiftEvent,       on_gift)
+            client.add_listener(DisconnectEvent, on_disconnect)
+
             print(f"[TikTokLive] Checking if {current_username} is live...")
-            loop.run_until_complete(c.connect())
-            # connect() returns normally when stream ends
-            print(f"[TikTokLive] Stream ended for {current_username}.")
-            state["is_live"] = False
-            push_state()
 
-            # Username change hua kya? Agar haan to skip delay
-            if _tiktok_reconnect.is_set():
-                print(f"[TikTokLive] Username changed, reconnecting immediately...")
-                continue
-            if _tiktok_reconnect.wait(timeout=RECONNECT_DELAY):
-                print(f"[TikTokLive] Username changed during wait, reconnecting immediately...")
-                continue
+            async def _run():
+                """connect() aur stop_signal dono parallel chalao."""
+                connect_task = loop.create_task(client.connect())
+                # Jo pehle khatam ho — connect ya stop_signal
+                done, pending = await asyncio.wait(
+                    [connect_task, asyncio.ensure_future(stop_signal)],
+                    return_when=asyncio.FIRST_COMPLETED
+                )
+                # Agar stop_signal pehle aaya to client gracefully disconnect karo
+                if stop_signal in done and not connect_task.done():
+                    try:
+                        await client.disconnect()
+                    except Exception:
+                        pass
+                    connect_task.cancel()
+                    try:
+                        await connect_task
+                    except (asyncio.CancelledError, Exception):
+                        pass
+                elif connect_task in done:
+                    # Normal stream end — exception check karo
+                    exc = connect_task.exception()
+                    if exc:
+                        raise exc
 
-        except Exception as e:
-            err = str(e).lower()
-            # Username change ke wajah se disconnect hua — quickly restart
-            if _tiktok_reconnect.is_set():
-                print(f"[TikTokLive] Reconnecting for new username: {TIKTOK_USERNAME}...")
+            loop.run_until_complete(_run())
+
+            # Username change hua tha? → turant restart
+            if _username_change_event.is_set():
+                print(f"[TikTokLive] Username changed → restarting for {TIKTOK_USERNAME}")
                 state["is_live"] = False
                 push_state()
                 continue
 
-            # User not live — expected error, poll quietly
+            # Normal stream end
+            print(f"[TikTokLive] Stream ended for {current_username}.")
+            state["is_live"] = False
+            push_state()
+            # RECONNECT_DELAY wait — username change hone par early exit
+            if _username_change_event.wait(timeout=RECONNECT_DELAY):
+                print(f"[TikTokLive] Username changed during wait → restarting")
+                continue
+
+        except Exception as e:
+            # Username change wajah se interrupt hua
+            if _username_change_event.is_set():
+                print(f"[TikTokLive] Username changed → restarting for {TIKTOK_USERNAME}")
+                state["is_live"] = False
+                push_state()
+                continue
+
+            err = str(e).lower()
             if any(x in err for x in ["not live", "not_live", "not currently live",
                                        "room_id", "failed to retrieve", "not found",
                                        "offline", "host_not_online"]):
                 if state["is_live"]:
                     state["is_live"] = False
                     push_state()
-                print(f"[TikTokLive] {current_username} is offline. Next check in {POLL_INTERVAL}s...")
-                if _tiktok_reconnect.wait(timeout=POLL_INTERVAL):
-                    print(f"[TikTokLive] Username changed, reconnecting immediately...")
+                print(f"[TikTokLive] {current_username} offline. Next check in {POLL_INTERVAL}s...")
+                if _username_change_event.wait(timeout=POLL_INTERVAL):
+                    print(f"[TikTokLive] Username changed → restarting")
                     continue
             else:
-                # Unexpected error (network, rate limit, etc.)
-                print(f"[TikTokLive] Error: {e}")
+                print(f"[TikTokLive] Unexpected error: {e}")
                 state["is_live"] = False
                 push_state()
-                if _tiktok_reconnect.wait(timeout=RECONNECT_DELAY):
-                    print(f"[TikTokLive] Username changed, reconnecting immediately...")
+                if _username_change_event.wait(timeout=RECONNECT_DELAY):
+                    print(f"[TikTokLive] Username changed → restarting")
                     continue
+
         finally:
-            with _client_lock:
-                _current_client = None
+            # Stop signal resolve karo agar abhi tak pending hai
+            # (watcher thread block na kare)
+            _signal_stop()
             try:
                 loop.close()
             except Exception:
@@ -543,8 +539,6 @@ threading.Thread(target=run_tiktok_client, daemon=True).start()
 # ══════════════════════════════════════════
 # FLASK ROUTES
 # ══════════════════════════════════════════
-
-
 @app.route("/")
 def index():
     return send_file(os.path.join(BASE_DIR, "dashboard.html"))
@@ -585,73 +579,6 @@ def get_data():
     return jsonify(state)
 
 
-@app.route("/api/debug/avatars")
-def debug_avatars():
-    """Debug: stored avatar URLs dekho"""
-    return jsonify({
-        "total": len(user_avatars),
-        "avatars": dict(list(user_avatars.items())[:10])
-    })
-
-
-@app.route("/api/avatar")
-def proxy_avatar():
-    """TikTok CDN avatar URLs ko proxy karo — browser CORS bypass"""
-    url = request.args.get("url", "").strip()
-    # Sirf TikTok CDN URLs allow karo
-    allowed = ("tiktokcdn.com", "tiktokcdn-us.com", "musical.ly",
-               "p16-sign", "p19-sign", "p77-sign", "p16-amd")
-    if not url or not any(d in url for d in allowed):
-        return jsonify({"error": "Invalid or missing avatar URL"}), 400
-
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "Referer": "https://www.tiktok.com/",
-        "Accept": "image/webp,image/apng,image/*,*/*;q=0.8",
-    }
-
-    try:
-        r = req_lib.get(url, headers=headers, timeout=8, stream=True)
-    except req_lib.exceptions.ConnectTimeout:
-        print(f"[Avatar Proxy] Connect timeout: {url}")
-        return jsonify({"error": "TikTok CDN connect timeout"}), 504
-    except req_lib.exceptions.ReadTimeout:
-        print(f"[Avatar Proxy] Read timeout: {url}")
-        return jsonify({"error": "TikTok CDN read timeout"}), 504
-    except req_lib.exceptions.ConnectionError as e:
-        print(f"[Avatar Proxy] Connection error: {e}")
-        return jsonify({"error": "TikTok CDN unreachable"}), 502
-    except req_lib.exceptions.TooManyRedirects:
-        print(f"[Avatar Proxy] Too many redirects: {url}")
-        return jsonify({"error": "TikTok CDN redirect loop"}), 502
-    except req_lib.exceptions.RequestException as e:
-        print(f"[Avatar Proxy] Request failed: {e}")
-        return jsonify({"error": "Failed to fetch avatar"}), 502
-
-    if r.status_code == 403:
-        print(f"[Avatar Proxy] CDN returned 403 (signed URL expired): {url}")
-        return jsonify({"error": "Avatar URL expired"}), 410
-    if r.status_code == 404:
-        return jsonify({"error": "Avatar not found on CDN"}), 404
-    if r.status_code >= 500:
-        print(f"[Avatar Proxy] CDN server error {r.status_code}: {url}")
-        return jsonify({"error": "TikTok CDN server error"}), 502
-    if r.status_code != 200:
-        print(f"[Avatar Proxy] Unexpected status {r.status_code}: {url}")
-        return jsonify({"error": f"CDN returned {r.status_code}"}), 502
-
-    ct = r.headers.get("Content-Type", "image/jpeg")
-    if not ct.startswith("image/"):
-        print(f"[Avatar Proxy] Non-image Content-Type: {ct}")
-        return jsonify({"error": "CDN returned non-image content"}), 502
-
-    return Response(
-        r.content,
-        content_type=ct,
-        headers={"Cache-Control": "public, max-age=3600"}
-    )
-
-
 @app.route("/api/settings", methods=["GET"])
 def get_settings():
     return jsonify({"username": TIKTOK_USERNAME})
@@ -660,33 +587,64 @@ def get_settings():
 @app.route("/api/settings", methods=["POST"])
 def save_settings():
     global TIKTOK_USERNAME
-    body = request.get_json() or {}
-    raw_username = body.get("username", "")
-    new_username = _normalize_username(raw_username)
+    body         = request.get_json() or {}
+    raw          = body.get("username", "")
+    new_username = _normalize_username(raw)
 
     if not new_username:
         return jsonify({"error": "Username khaali nahi ho sakta"}), 400
-
     if len(new_username) > 50:
         return jsonify({"error": "Username bohat lamba hai"}), 400
 
-    old_username = TIKTOK_USERNAME
+    old_username    = TIKTOK_USERNAME
     TIKTOK_USERNAME = new_username
     state["streamer"] = new_username.replace("@", "")
-
-    # File mein persist karo
     _save_settings({"username": new_username})
 
-    # Agar username actually change hua to TikTok client reconnect karo
     if old_username != new_username:
         state["is_live"] = False
         push_state()
-        # Pehle signal set karo, phir active client ko force disconnect karo
-        _tiktok_reconnect.set()
-        _disconnect_current_client()
-        print(f"[Settings] Username changed: {old_username} → {new_username}")
+        # _username_change_event.set() → watcher thread unblock → stop_signal resolve
+        # → client.disconnect() → connect() return → loop restart with new username
+        _username_change_event.set()
+        print(f"[Settings] Username: {old_username} → {new_username}")
 
     return jsonify({"status": "success", "username": new_username})
+
+
+@app.route("/api/debug/avatars")
+def debug_avatars():
+    return jsonify({
+        "total": len(user_avatars),
+        "avatars": dict(list(user_avatars.items())[:10])
+    })
+
+
+@app.route("/api/avatar")
+def proxy_avatar():
+    url = request.args.get("url", "").strip()
+    allowed = ("tiktokcdn.com", "tiktokcdn-us.com", "musical.ly",
+               "p16-sign", "p19-sign", "p77-sign", "p16-amd")
+    if not url or not any(d in url for d in allowed):
+        return "", 400
+    try:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Referer":    "https://www.tiktok.com/",
+            "Accept":     "image/webp,image/apng,image/*,*/*;q=0.8",
+        }
+        r = req_lib.get(url, headers=headers, timeout=8, stream=True)
+        if r.status_code != 200:
+            return "", 404
+        ct = r.headers.get("Content-Type", "image/jpeg")
+        return Response(
+            r.content,
+            content_type=ct,
+            headers={"Cache-Control": "public, max-age=3600"}
+        )
+    except Exception as e:
+        print(f"[Avatar Proxy] Error: {e}")
+        return "", 404
 
 
 @app.route("/api/battle/start", methods=["POST"])
@@ -694,36 +652,27 @@ def start_battle():
     req = request.get_json() or {}
     duration = int(req.get("duration", 120))
 
-    # ── Step 1: active=False — background worker ko rok do ──
     state["battle"]["active"] = False
-
-    # ── Step 2: Completely fresh battle state ──
-    # Players dict bhi nayi — purane scores bilkul nahi rahenge
-    # Teams (internal_set_a/b) rehti hain — log dobara join nahi karenge
     new_players = {nick: {"likes": 0, "coins": 0}
                    for nick in (internal_set_a | internal_set_b)}
 
     state["battle"] = {
-        "active": False,           # Step 3 mein True karenge
-        "duration": duration,
+        "active":    False,
+        "duration":  duration,
         "remaining": duration,
-        "end_time": time.time() + duration,
-        "score_a": 0,
-        "score_b": 0,
-        "count_a": len(internal_set_a),
-        "count_b": len(internal_set_b),
-        "winner": None,
-        "all_a": list(internal_set_a),
-        "all_b": list(internal_set_b),
-        "top_a": [],
-        "top_b": [],
-        "players": new_players
+        "end_time":  time.time() + duration,
+        "score_a":   0,
+        "score_b":   0,
+        "count_a":   len(internal_set_a),
+        "count_b":   len(internal_set_b),
+        "winner":    None,
+        "all_a":     list(internal_set_a),
+        "all_b":     list(internal_set_b),
+        "top_a":     [],
+        "top_b":     [],
+        "players":   new_players
     }
-
-    # ── Step 3: Ab active=True — sahi end_time set hone ke baad ──
     state["battle"]["active"] = True
-
-    # top_a/top_b turant update karo — background worker ka wait nahi
     _update_top_lists()
     push_state()
     return jsonify({"status": "success"})
@@ -731,7 +680,7 @@ def start_battle():
 
 @app.route("/api/battle/end", methods=["POST"])
 def end_battle():
-    state["battle"]["active"] = False
+    state["battle"]["active"]    = False
     state["battle"]["remaining"] = 0
     sa, sb = state["battle"]["score_a"], state["battle"]["score_b"]
     state["battle"]["winner"] = "A" if sa > sb else ("B" if sb > sa else "DRAW")
@@ -741,15 +690,14 @@ def end_battle():
 
 @app.route("/api/battle/reset-scores", methods=["POST"])
 def reset_scores():
-    # Scores zero karo, teams rehne do
-    state["battle"]["active"] = False
+    state["battle"]["active"]    = False
     state["battle"]["remaining"] = 0
-    state["battle"]["end_time"] = 0
-    state["battle"]["score_a"] = 0
-    state["battle"]["score_b"] = 0
-    state["battle"]["winner"] = None
-    state["battle"]["top_a"] = []
-    state["battle"]["top_b"] = []
+    state["battle"]["end_time"]  = 0
+    state["battle"]["score_a"]   = 0
+    state["battle"]["score_b"]   = 0
+    state["battle"]["winner"]    = None
+    state["battle"]["top_a"]     = []
+    state["battle"]["top_b"]     = []
     for nick in state["battle"]["players"]:
         state["battle"]["players"][nick] = {"likes": 0, "coins": 0}
     push_state()
@@ -758,7 +706,6 @@ def reset_scores():
 
 @app.route("/api/battle/reset", methods=["POST"])
 def reset_all():
-    # Sab kuch clear — teams bhi
     internal_set_a.clear()
     internal_set_b.clear()
     join_order_a.clear()
@@ -769,8 +716,8 @@ def reset_all():
         "winner": None, "all_a": [], "all_b": [],
         "top_a": [], "top_b": [], "players": {}
     }
-    state["team_comments"] = []
-    state["notifications"] = []
+    state["team_comments"]  = []
+    state["notifications"]  = []
     push_state()
     return jsonify({"status": "success"})
 
