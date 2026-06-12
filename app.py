@@ -58,7 +58,7 @@ def _normalize_username(raw: str) -> str:
     raw = raw.strip().lstrip("@").strip()
     if not raw:
         return ""
-    return "@" + ra
+    return "@" + raw
 
 
 # Load saved username on startup
