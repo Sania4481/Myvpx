@@ -623,10 +623,124 @@
     }
 
     .footer { text-align: center; padding: 10px 0 6px; font-size: 0.62rem; color: #2d3748; }
+
+    /* ── Settings Gear Button (fixed top-right) ── */
+    .settings-btn {
+      position: fixed; top: 14px; right: 14px; z-index: 999;
+      width: 40px; height: 40px; border-radius: 50%;
+      background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+      color: var(--muted); font-size: 1.2rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.25s; backdrop-filter: blur(8px);
+    }
+    .settings-btn:hover { color: var(--gold); border-color: rgba(255,214,10,0.4); background: rgba(255,214,10,0.08); transform: rotate(30deg); }
+    .settings-btn .gear-icon { display: inline-block; transition: transform 0.4s; }
+    .settings-btn:hover .gear-icon { transform: rotate(90deg); }
+
+    /* ── Settings Modal Overlay ── */
+    .settings-overlay {
+      position: fixed; inset: 0; z-index: 1100;
+      background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+      display: none; align-items: center; justify-content: center;
+      animation: fadeIn 0.25s ease;
+    }
+    .settings-overlay.open { display: flex; }
+
+    .settings-modal {
+      background: #0f0f18; border: 1px solid rgba(255,214,10,0.25);
+      border-radius: 22px; padding: 28px 24px 22px;
+      width: 92%; max-width: 380px; position: relative;
+      box-shadow: 0 8px 50px rgba(0,0,0,0.6), 0 0 30px rgba(255,214,10,0.08);
+      animation: modalIn 0.35s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    @keyframes modalIn { from { opacity:0; transform: scale(0.9) translateY(20px); } to { opacity:1; transform: scale(1) translateY(0); } }
+
+    .settings-close {
+      position: absolute; top: 12px; right: 14px;
+      background: none; border: none; color: var(--muted);
+      font-size: 1.2rem; cursor: pointer; padding: 4px 8px;
+      border-radius: 8px; transition: all 0.2s;
+    }
+    .settings-close:hover { color: var(--text); background: rgba(255,255,255,0.06); }
+
+    .settings-title {
+      font-family: 'Rajdhani', sans-serif; font-size: 1.2rem; font-weight: 700;
+      color: var(--gold); letter-spacing: 2px; text-transform: uppercase;
+      margin-bottom: 20px; text-align: center;
+    }
+    .settings-field { margin-bottom: 18px; }
+    .settings-label {
+      display: block; font-size: 0.7rem; font-weight: 700;
+      color: var(--muted); letter-spacing: 1px; text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .settings-input {
+      width: 100%; padding: 12px 14px; border-radius: 12px;
+      background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+      color: var(--text); font-family: 'Inter', sans-serif;
+      font-size: 0.95rem; font-weight: 600; outline: none;
+      transition: border-color 0.2s;
+    }
+    .settings-input:focus { border-color: rgba(255,214,10,0.5); }
+    .settings-input::placeholder { color: var(--muted); font-weight: 400; }
+    .settings-hint {
+      font-size: 0.65rem; color: var(--muted); margin-top: 6px;
+    }
+    .settings-save {
+      width: 100%; padding: 14px; border: none; border-radius: 14px;
+      background: linear-gradient(135deg, rgba(247,37,133,0.2), rgba(76,201,240,0.2));
+      border: 2px solid rgba(255,214,10,0.4); color: var(--gold);
+      font-family: 'Rajdhani', sans-serif; font-size: 1rem; font-weight: 700;
+      letter-spacing: 1.5px; text-transform: uppercase; cursor: pointer;
+      transition: all 0.2s;
+    }
+    .settings-save:hover:not(:disabled) {
+      background: linear-gradient(135deg, rgba(247,37,133,0.3), rgba(76,201,240,0.3));
+      border-color: var(--gold); box-shadow: 0 0 24px rgba(255,214,10,0.3);
+      transform: translateY(-2px);
+    }
+    .settings-save:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; }
+    .settings-status {
+      text-align: center; margin-top: 12px; font-size: 0.78rem; font-weight: 700;
+      min-height: 1.2em;
+    }
+    .settings-status.success { color: var(--green); }
+    .settings-status.error { color: var(--pink); }
+    .settings-current {
+      text-align: center; padding: 10px; margin-bottom: 16px;
+      background: rgba(255,255,255,0.03); border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+    .settings-current-label { font-size: 0.6rem; color: var(--muted); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+    .settings-current-val { font-size: 1rem; font-weight: 800; color: var(--cyan); margin-top: 4px; }
     @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
   </style>
 </head>
 <body>
+
+<!-- ⚙️ Settings Gear Button -->
+<button class="settings-btn" onclick="openSettings()" title="Settings">
+  <span class="gear-icon">⚙️</span>
+</button>
+
+<!-- ⚙️ Settings Modal -->
+<div class="settings-overlay" id="settingsOverlay" onclick="if(event.target===this)closeSettings()">
+  <div class="settings-modal">
+    <button class="settings-close" onclick="closeSettings()">✕</button>
+    <div class="settings-title">⚙️ Settings</div>
+    <div class="settings-current">
+      <div class="settings-current-label">Current Streamer</div>
+      <div class="settings-current-val" id="settingsCurrentUser">@loading...</div>
+    </div>
+    <div class="settings-field">
+      <label class="settings-label">TikTok Username</label>
+      <input class="settings-input" id="settingsUsername" type="text" placeholder="@username ya username" autocomplete="off" spellcheck="false">
+      <div class="settings-hint">@ ke saath ya bina — dono chalega (e.g. ganji_live_8)</div>
+    </div>
+    <button class="settings-save" id="settingsSaveBtn" onclick="saveSettings()">💾 Save &amp; Reconnect</button>
+    <div class="settings-status" id="settingsStatus"></div>
+  </div>
+</div>
 
 <!-- 🔔 Notification Container (fixed, top-right) -->
 <div id="notifContainer" class="notif-container"></div>
@@ -1406,6 +1520,89 @@
 
     document.getElementById('footer').textContent = 'Updated ' + new Date().toLocaleTimeString();
   }
+
+  /* ══════════════════════════════════════════
+     ⚙️ SETTINGS — username change karo
+  ══════════════════════════════════════════ */
+  function openSettings(){
+    var overlay = document.getElementById('settingsOverlay');
+    var input   = document.getElementById('settingsUsername');
+    var status  = document.getElementById('settingsStatus');
+    var current = document.getElementById('settingsCurrentUser');
+    status.textContent = '';
+    status.className = 'settings-status';
+
+    // Current username dikhao
+    var streamer = document.getElementById('streamerName').textContent || '';
+    current.textContent = streamer;
+    input.value = streamer.replace(/^@/, '');
+
+    overlay.classList.add('open');
+    setTimeout(function(){ input.focus(); input.select(); }, 100);
+  }
+
+  function closeSettings(){
+    document.getElementById('settingsOverlay').classList.remove('open');
+  }
+
+  async function saveSettings(){
+    var input   = document.getElementById('settingsUsername');
+    var btn     = document.getElementById('settingsSaveBtn');
+    var status  = document.getElementById('settingsStatus');
+    var raw     = input.value.trim();
+
+    if(!raw){
+      status.className = 'settings-status error';
+      status.textContent = 'Username khaali nahi ho sakta!';
+      input.focus();
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+    status.textContent = '';
+    status.className = 'settings-status';
+
+    try {
+      var r = await fetch('/api/settings', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({username: raw})
+      });
+      var data = await r.json();
+
+      if(r.ok){
+        status.className = 'settings-status success';
+        status.textContent = 'Saved! Reconnecting to ' + data.username + '...';
+        document.getElementById('settingsCurrentUser').textContent = data.username;
+        document.getElementById('streamerName').textContent = data.username;
+        showToast('⚙️ Username changed to ' + data.username);
+        setTimeout(closeSettings, 1500);
+      } else {
+        status.className = 'settings-status error';
+        status.textContent = data.error || 'Save failed!';
+      }
+    } catch(e) {
+      status.className = 'settings-status error';
+      status.textContent = 'Network error — server se baat nahi ho paayi';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '💾 Save & Reconnect';
+    }
+  }
+
+  // Enter key se bhi save ho jaye
+  document.getElementById('settingsUsername').addEventListener('keydown', function(e){
+    if(e.key === 'Enter') saveSettings();
+  });
+
+  // Escape key se modal band ho
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape'){
+      var overlay = document.getElementById('settingsOverlay');
+      if(overlay.classList.contains('open')) closeSettings();
+    }
+  });
 
   /* ══════════════════════════════════════════
      SSE CONNECTION — polling ki jagah server push
