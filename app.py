@@ -21,7 +21,49 @@ except ImportError:
 
 app = Flask(__name__)
 
-TIKTOK_USERNAME = "@exir707"
+# ══════════════════════════════════════════
+# SETTINGS PERSISTENCE (JSON file)
+# ══════════════════════════════════════════
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SETTINGS_FILE = os.path.join(BASE_DIR, "settings.json")
+DEFAULT_USERNAME = "@ganji_live_8"
+
+_settings_lock = threading.Lock()
+
+
+def _load_settings() -> dict:
+    """settings.json se settings load karo, nahi mila to defaults."""
+    try:
+        with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if "username" in data:
+                return data
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        pass
+    return {"username": DEFAULT_USERNAME}
+
+
+def _save_settings(data: dict):
+    """settings.json mein save karo."""
+    with _settings_lock:
+        try:
+            with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except OSError as e:
+            print(f"[Settings] Save error: {e}")
+
+
+def _normalize_username(raw: str) -> str:
+    """@ prefix ensure karo, whitespace hatao."""
+    raw = raw.strip().lstrip("@").strip()
+    if not raw:
+        return ""
+    return "@" + raw
+
+
+# Load saved username on startup
+_current_settings = _load_settings()
+TIKTOK_USERNAME = _current_settings["username"]
 
 # ══════════════════════════════════════════
 # GLOBAL STATE
@@ -378,6 +420,9 @@ async def on_disconnect(event: DisconnectEvent):
     print(f"[TikTokLive] ❌ Disconnected from {TIKTOK_USERNAME}.")
 
 
+_tiktok_reconnect = threading.Event()
+
+
 def create_client() -> TikTokLiveClient:
     c = TikTokLiveClient(unique_id=TIKTOK_USERNAME)
     c.add_listener(ConnectEvent, on_connect)
@@ -394,23 +439,30 @@ def run_tiktok_client():
     - Agar user live nahi → 30s wait kar ke dobara check karo (CPU waste nahi)
     - Agar user live ho gaya → connect karo aur events sun-o
     - Agar live khatam ho → disconnect, wapas polling mode
+    - Agar username change ho → turant reconnect karo
     """
+    global TIKTOK_USERNAME
     POLL_INTERVAL   = 30   # seconds — live nahi to kitni der baad check karo
     RECONNECT_DELAY = 10   # seconds — live tha, disconnect hua, reconnect delay
 
     while True:
+        # Check if username changed (reconnect signal)
+        _tiktok_reconnect.clear()
+        current_username = TIKTOK_USERNAME
+
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
             c = create_client()
-            print(f"[TikTokLive] Checking if {TIKTOK_USERNAME} is live...")
+            print(f"[TikTokLive] Checking if {current_username} is live...")
             loop.run_until_complete(c.connect())
             # connect() returns normally when stream ends
-            print(f"[TikTokLive] Stream ended for {TIKTOK_USERNAME}.")
+            print(f"[TikTokLive] Stream ended for {current_username}.")
             state["is_live"] = False
             push_state()
-            print(f"[TikTokLive] Reconnect check in {RECONNECT_DELAY}s...")
-            time.sleep(RECONNECT_DELAY)
+            if _tiktok_reconnect.wait(timeout=RECONNECT_DELAY):
+                print(f"[TikTokLive] Username changed, reconnecting immediately...")
+                continue
 
         except Exception as e:
             err = str(e).lower()
@@ -421,15 +473,18 @@ def run_tiktok_client():
                 if state["is_live"]:
                     state["is_live"] = False
                     push_state()
-                print(f"[TikTokLive] {TIKTOK_USERNAME} is offline. Next check in {POLL_INTERVAL}s...")
-                time.sleep(POLL_INTERVAL)
+                print(f"[TikTokLive] {current_username} is offline. Next check in {POLL_INTERVAL}s...")
+                if _tiktok_reconnect.wait(timeout=POLL_INTERVAL):
+                    print(f"[TikTokLive] Username changed, reconnecting immediately...")
+                    continue
             else:
                 # Unexpected error (network, rate limit, etc.)
                 print(f"[TikTokLive] Error: {e}")
                 state["is_live"] = False
                 push_state()
-                print(f"[TikTokLive] Retrying in {RECONNECT_DELAY}s...")
-                time.sleep(RECONNECT_DELAY)
+                if _tiktok_reconnect.wait(timeout=RECONNECT_DELAY):
+                    print(f"[TikTokLive] Username changed, reconnecting immediately...")
+                    continue
         finally:
             try:
                 loop.close()
@@ -443,7 +498,6 @@ threading.Thread(target=run_tiktok_client, daemon=True).start()
 # ══════════════════════════════════════════
 # FLASK ROUTES
 # ══════════════════════════════════════════
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 @app.route("/")
@@ -551,6 +605,41 @@ def proxy_avatar():
         content_type=ct,
         headers={"Cache-Control": "public, max-age=3600"}
     )
+
+
+@app.route("/api/settings", methods=["GET"])
+def get_settings():
+    return jsonify({"username": TIKTOK_USERNAME})
+
+
+@app.route("/api/settings", methods=["POST"])
+def save_settings():
+    global TIKTOK_USERNAME
+    body = request.get_json() or {}
+    raw_username = body.get("username", "")
+    new_username = _normalize_username(raw_username)
+
+    if not new_username:
+        return jsonify({"error": "Username khaali nahi ho sakta"}), 400
+
+    if len(new_username) > 50:
+        return jsonify({"error": "Username bohat lamba hai"}), 400
+
+    old_username = TIKTOK_USERNAME
+    TIKTOK_USERNAME = new_username
+    state["streamer"] = new_username.replace("@", "")
+
+    # File mein persist karo
+    _save_settings({"username": new_username})
+
+    # Agar username actually change hua to TikTok client reconnect karo
+    if old_username != new_username:
+        state["is_live"] = False
+        push_state()
+        _tiktok_reconnect.set()
+        print(f"[Settings] Username changed: {old_username} → {new_username}")
+
+    return jsonify({"status": "success", "username": new_username})
 
 
 @app.route("/api/battle/start", methods=["POST"])
