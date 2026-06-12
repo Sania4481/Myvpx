@@ -19,7 +19,7 @@ except ImportError:
 
 app = Flask(__name__)
 
-TIKTOK_USERNAME = "@ganji_live_8"
+TIKTOK_USERNAME = "@nongthituyet00"
 
 # ══════════════════════════════════════════
 # GLOBAL STATE
