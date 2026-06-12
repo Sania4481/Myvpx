@@ -500,27 +500,39 @@ def run_tiktok_client():
 
             print(f"[TikTokLive] Checking if {current_username} is live...")
 
+            async def _await_future(fut):
+                """Future ko await karo — asyncio.wait() ke liye task banana zaroori hai."""
+                return await fut
+
             async def _run():
                 """connect() aur stop_signal dono parallel chalao."""
                 connect_task = loop.create_task(client.connect())
-                # Jo pehle khatam ho — connect ya stop_signal
+                # stop_signal already a Future — wrap mat karo, seedha use karo
+                stop_task = loop.create_task(_await_future(stop_signal))
+
                 done, pending = await asyncio.wait(
-                    [connect_task, asyncio.ensure_future(stop_signal)],
+                    [connect_task, stop_task],
                     return_when=asyncio.FIRST_COMPLETED
                 )
-                # Agar stop_signal pehle aaya to client gracefully disconnect karo
-                if stop_signal in done and not connect_task.done():
+
+                # Pending tasks cancel karo
+                for t in pending:
+                    t.cancel()
+                    try:
+                        await t
+                    except (asyncio.CancelledError, Exception):
+                        pass
+
+                # Agar stop_signal pehle aaya → gracefully disconnect
+                if stop_task in done and not connect_task.done():
                     try:
                         await client.disconnect()
                     except Exception:
                         pass
-                    connect_task.cancel()
-                    try:
-                        await connect_task
-                    except (asyncio.CancelledError, Exception):
-                        pass
-                elif connect_task in done:
-                    # Normal stream end — exception check karo
+                    return  # loop restart karega
+
+                # connect_task done — exception check karo (cancelled nahi tha)
+                if connect_task in done and not connect_task.cancelled():
                     exc = connect_task.exception()
                     if exc:
                         raise exc
@@ -653,11 +665,35 @@ def save_settings():
     _save_settings({"username": new_username})
 
     if old_username != new_username:
-        state["is_live"] = False
+        # ── Purana streamer ka sab data clear karo ──
+        state["is_live"]      = False
+        state["total_likes"]  = 0
+        state["total_coins"]  = 0
+        state["likes"]        = []
+        state["gifts"]        = []
+        state["notifications"] = []
+        state["team_comments"] = []
+
+        global_likes_tracker.clear()
+        global_gifts_tracker.clear()
+        user_avatars.clear()
+
+        # Teams aur battle bhi reset
+        internal_set_a.clear()
+        internal_set_b.clear()
+        join_order_a.clear()
+        join_order_b.clear()
+        state["battle"] = {
+            "active": False, "duration": 120, "remaining": 0, "end_time": 0,
+            "score_a": 0, "score_b": 0, "count_a": 0, "count_b": 0,
+            "winner": None, "all_a": [], "all_b": [],
+            "top_a": [], "top_b": [], "players": {}
+        }
+
         _mark_dirty()
         push_state()
         _username_change_event.set()
-        print(f"[Settings] Username: {old_username} → {new_username}")
+        print(f"[Settings] Username: {old_username} → {new_username} (data cleared)")
 
     return jsonify({"status": "success", "username": new_username})
 
@@ -724,6 +760,7 @@ def start_battle():
     }
     state["battle"]["active"] = True
     _update_top_lists()
+    _mark_dirty()
     push_state()
     return jsonify({"status": "success"})
 
@@ -734,6 +771,7 @@ def end_battle():
     state["battle"]["remaining"] = 0
     sa, sb = state["battle"]["score_a"], state["battle"]["score_b"]
     state["battle"]["winner"] = "A" if sa > sb else ("B" if sb > sa else "DRAW")
+    _mark_dirty()
     push_state()
     return jsonify({"status": "success"})
 
@@ -750,6 +788,7 @@ def reset_scores():
     state["battle"]["top_b"]     = []
     for nick in state["battle"]["players"]:
         state["battle"]["players"][nick] = {"likes": 0, "coins": 0}
+    _mark_dirty()
     push_state()
     return jsonify({"status": "success"})
 
@@ -768,6 +807,7 @@ def reset_all():
     }
     state["team_comments"]  = []
     state["notifications"]  = []
+    _mark_dirty()
     push_state()
     return jsonify({"status": "success"})
 
