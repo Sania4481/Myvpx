@@ -1615,6 +1615,7 @@
   function closeSettings(){
     gel('settingsOverlay').classList.remove('open');
     gel('settingsError').textContent = '';
+    gel('settingsError').style.color = '';   // gold warning color reset
     gel('settingsSaving').textContent = '';
   }
 
@@ -1647,10 +1648,17 @@
       // Success
       gel('settingsSaving').textContent = '✅ Saved! Reconnecting...';
       gel('streamerName').textContent = data.username || ('@' + raw.replace(/^@/, ''));
+
+      // Render.com warning — agar backend ne warning diya to show karo
+      if(data.render_warning){
+        gel('settingsError').style.color = 'var(--gold)';
+        gel('settingsError').textContent = data.render_warning;
+      }
+
       setTimeout(function(){
         closeSettings();
         showToast('✅ Username updated: ' + data.username);
-      }, 800);
+      }, data.render_warning ? 5000 : 800);  // warning ho to 5s ruko, user padhe
     } catch(e) {
       gel('settingsError').textContent = '⚠️ Network error — try again';
       gel('settingsSaveBtn').disabled = false;
