@@ -217,6 +217,8 @@ def background_worker():
                 sa = state["battle"]["score_a"]
                 sb = state["battle"]["score_b"]
                 state["battle"]["winner"] = "A" if sa > sb else ("B" if sb > sa else "DRAW")
+                # Timer expire — teams clear karo, fresh join ke liye
+                _clear_teams_after_battle()
                 _mark_dirty()
                 changed = True
             elif remaining != state["battle"]["remaining"]:
@@ -319,6 +321,21 @@ def _sync_team_counts():
     state["battle"]["all_b"]   = list(internal_set_b)
     state["battle"]["count_a"] = len(internal_set_a)
     state["battle"]["count_b"] = len(internal_set_b)
+
+
+def _clear_teams_after_battle():
+    """
+    Battle end hone ke baad teams aur join orders clear karo.
+    Agli battle mein log fresh join karein — A ya B dobara type karein.
+    """
+    internal_set_a.clear()
+    internal_set_b.clear()
+    join_order_a.clear()
+    join_order_b.clear()
+    state["battle"]["all_a"]   = []
+    state["battle"]["all_b"]   = []
+    state["battle"]["count_a"] = 0
+    state["battle"]["count_b"] = 0
 
 
 # ══════════════════════════════════════════
@@ -774,9 +791,11 @@ def start_battle():
     req = request.get_json() or {}
     duration = int(req.get("duration", 120))
 
-    state["battle"]["active"] = False
-    new_players = {nick: {"likes": 0, "coins": 0}
-                   for nick in (internal_set_a | internal_set_b)}
+    # ── Teams aur purana state clear karo — fresh battle ──
+    internal_set_a.clear()
+    internal_set_b.clear()
+    join_order_a.clear()
+    join_order_b.clear()
 
     state["battle"] = {
         "active":    False,
@@ -785,14 +804,14 @@ def start_battle():
         "end_time":  time.time() + duration,
         "score_a":   0,
         "score_b":   0,
-        "count_a":   len(internal_set_a),
-        "count_b":   len(internal_set_b),
+        "count_a":   0,
+        "count_b":   0,
         "winner":    None,
-        "all_a":     list(internal_set_a),
-        "all_b":     list(internal_set_b),
+        "all_a":     [],
+        "all_b":     [],
         "top_a":     [],
         "top_b":     [],
-        "players":   new_players
+        "players":   {}
     }
     state["battle"]["active"] = True
     _update_top_lists()
@@ -807,6 +826,8 @@ def end_battle():
     state["battle"]["remaining"] = 0
     sa, sb = state["battle"]["score_a"], state["battle"]["score_b"]
     state["battle"]["winner"] = "A" if sa > sb else ("B" if sb > sa else "DRAW")
+    # Manual end — teams clear karo, fresh join ke liye
+    _clear_teams_after_battle()
     _mark_dirty()
     push_state()
     return jsonify({"status": "success"})
