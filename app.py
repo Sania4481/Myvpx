@@ -31,12 +31,29 @@ except ImportError:
 # ══════════════════════════════════════════
 BASE_DIR      = os.path.dirname(os.path.abspath(__file__))
 SETTINGS_FILE = os.path.join(BASE_DIR, "settings.json")
-DEFAULT_USERNAME = "@ganji_live_8"
+
+# DEFAULT_USERNAME priority order:
+#   1. TIKTOK_USERNAME env var (Render dashboard mein set karo — permanent rehta hai)
+#   2. settings.json file (local dev ke liye, Render pe ephemeral)
+#   3. Hardcoded fallback
+DEFAULT_USERNAME = os.environ.get("TIKTOK_USERNAME", "@ganji_live_8")
 
 _settings_lock = threading.Lock()
 
 
 def _load_settings() -> dict:
+    """
+    Username load karo — priority order:
+    1. TIKTOK_USERNAME env var  (Render pe permanent — restart safe)
+    2. settings.json file       (local dev ya agar env var nahi)
+    3. DEFAULT_USERNAME fallback
+    """
+    # Env var highest priority — Render restart ke baad bhi survive karta hai
+    env_user = os.environ.get("TIKTOK_USERNAME", "").strip()
+    if env_user:
+        return {"username": env_user if env_user.startswith("@") else "@" + env_user}
+
+    # File fallback (local dev)
     try:
         with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -48,12 +65,18 @@ def _load_settings() -> dict:
 
 
 def _save_settings(data: dict):
+    """
+    Settings save karo:
+    - settings.json mein save (local / best-effort)
+    - Render pe ye file restart ke baad delete ho jaati hai,
+      isliye Render dashboard mein TIKTOK_USERNAME env var set karna zaroori hai
+    """
     with _settings_lock:
         try:
             with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
         except OSError as e:
-            print(f"[Settings] Save error: {e}")
+            print(f"[Settings] File save error (non-critical on Render): {e}")
 
 
 def _normalize_username(raw: str) -> str:
@@ -664,6 +687,18 @@ def save_settings():
     state["streamer"] = new_username.replace("@", "")
     _save_settings({"username": new_username})
 
+    # ── Render.com ke liye warning ──
+    # settings.json restart ke baad delete ho jaata hai.
+    # User ko remind karo ke Render dashboard mein TIKTOK_USERNAME env var update kare.
+    render_warning = None
+    if os.environ.get("RENDER") or os.environ.get("RENDER_SERVICE_NAME"):
+        render_warning = (
+            "⚠️ Render pe deploy hai: settings.json restart ke baad reset ho jaata hai. "
+            "Permanent rakhne ke liye Render Dashboard → Environment → "
+            f"TIKTOK_USERNAME = {new_username} set karo."
+        )
+        print(f"[Settings] RENDER WARNING: {render_warning}")
+
     if old_username != new_username:
         # ── Purana streamer ka sab data clear karo ──
         state["is_live"]      = False
@@ -695,7 +730,8 @@ def save_settings():
         _username_change_event.set()
         print(f"[Settings] Username: {old_username} → {new_username} (data cleared)")
 
-    return jsonify({"status": "success", "username": new_username})
+    return jsonify({"status": "success", "username": new_username,
+                    "render_warning": render_warning})
 
 
 @app.route("/api/debug/avatars")
