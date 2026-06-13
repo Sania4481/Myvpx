@@ -212,12 +212,21 @@ def background_worker():
             now       = time.time()
             remaining = int(end_time - now)
             if end_time > 0 and remaining <= 0:
+                # Battle time khatam — winner decide karo
                 state["battle"]["active"]    = False
                 state["battle"]["remaining"] = 0
                 sa = state["battle"]["score_a"]
                 sb = state["battle"]["score_b"]
                 state["battle"]["winner"] = "A" if sa > sb else ("B" if sb > sa else "DRAW")
-                _clear_teams()   # battle khatam — teams fresh karo
+                # Teams clear karo — next battle ke liye fresh join
+                internal_set_a.clear()
+                internal_set_b.clear()
+                join_order_a.clear()
+                join_order_b.clear()
+                state["battle"]["all_a"]   = []
+                state["battle"]["all_b"]   = []
+                state["battle"]["count_a"] = 0
+                state["battle"]["count_b"] = 0
                 _mark_dirty()
                 changed = True
             elif remaining != state["battle"]["remaining"]:
@@ -313,21 +322,6 @@ def _update_top_lists():
             except ValueError: return 9999
         state["battle"]["top_a"] = sorted(team_a, key=join_order_key_a)[:5]
         state["battle"]["top_b"] = sorted(team_b, key=join_order_key_b)[:5]
-
-
-def _clear_teams():
-    """Battle khatam hone par teams aur join orders clear karo — fresh battle ke liye."""
-    internal_set_a.clear()
-    internal_set_b.clear()
-    join_order_a.clear()
-    join_order_b.clear()
-    state["battle"]["all_a"]   = []
-    state["battle"]["all_b"]   = []
-    state["battle"]["count_a"] = 0
-    state["battle"]["count_b"] = 0
-    state["battle"]["players"] = {}
-    state["battle"]["top_a"]   = []
-    state["battle"]["top_b"]   = []
 
 
 def _sync_team_counts():
@@ -823,7 +817,15 @@ def end_battle():
     state["battle"]["remaining"] = 0
     sa, sb = state["battle"]["score_a"], state["battle"]["score_b"]
     state["battle"]["winner"] = "A" if sa > sb else ("B" if sb > sa else "DRAW")
-    _clear_teams()   # battle khatam — teams fresh karo
+    # Teams clear karo — next battle ke liye fresh join
+    internal_set_a.clear()
+    internal_set_b.clear()
+    join_order_a.clear()
+    join_order_b.clear()
+    state["battle"]["all_a"]   = []
+    state["battle"]["all_b"]   = []
+    state["battle"]["count_a"] = 0
+    state["battle"]["count_b"] = 0
     _mark_dirty()
     push_state()
     return jsonify({"status": "success"})
@@ -831,13 +833,22 @@ def end_battle():
 
 @app.route("/api/battle/reset-scores", methods=["POST"])
 def reset_scores():
+    # Scores aur battle state zero karo
+    # (Teams battle end par already clear ho chuki hain)
     state["battle"]["active"]    = False
     state["battle"]["remaining"] = 0
     state["battle"]["end_time"]  = 0
     state["battle"]["score_a"]   = 0
     state["battle"]["score_b"]   = 0
     state["battle"]["winner"]    = None
-    _clear_teams()   # fresh battle ke liye teams bhi clear
+    state["battle"]["top_a"]     = []
+    state["battle"]["top_b"]     = []
+    state["battle"]["players"]   = {}
+    # Teams already clear hain — state bhi sync karo
+    state["battle"]["all_a"]     = list(internal_set_a)
+    state["battle"]["all_b"]     = list(internal_set_b)
+    state["battle"]["count_a"]   = len(internal_set_a)
+    state["battle"]["count_b"]   = len(internal_set_b)
     _mark_dirty()
     push_state()
     return jsonify({"status": "success"})
